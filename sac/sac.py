@@ -7,30 +7,27 @@ from buffer import replaybuffer
 from networks import ActorNetwork, CriticNetwork, ValueNetwork
 import config
 
+A_LR = config.A_LR
+C_LR = config.C_LR
+gamma = config.gamma
+MEMORY_CAPACITY = config.MEMORY_CAPACITY
+batch_size = config.batch_size
+reward_scale = config.reward_scale
 
 
 class SAC_agent(object):
-    def __init__(self, alpha=0.0003, beta=0.0003, input_dims=[8],
-            env=None, gamma=0.99, n_actions=2, max_size=1000000, tau=0.005,
-            layer1_size=256, layer2_size=256, batch_size=256, reward_scale=2):
+    def __init__(self, input_dims, n_actions, max_action):
+        self.input_dims, self.n_actions, self.max_action = input_dims, n_actions, max_action
+        self.memory = replaybuffer(MEMORY_CAPACITY, input_dims, n_actions)
 
-        self.gamma = gamma
-        self.tau = tau
-        self.memory = replaybuffer(max_size, input_dims, n_actions)
-        self.batch_size = batch_size
-        self.n_actions = n_actions
-
-
-        self.actor = ActorNetwork(alpha, input_dims, n_actions=n_actions,
-                    name='actor', max_action=env.action_space.high)
-        self.critic_1 = CriticNetwork(beta, input_dims, n_actions=n_actions,
-                    name='critic_1')
-        self.critic_2 = CriticNetwork(beta, input_dims, n_actions=n_actions,
-                    name='critic_2')                   
-        self.value = ValueNetwork(beta, input_dims, name='value')
-        self.target_value = ValueNetwork(beta, input_dims, name='target_value')       
+        self.actor = ActorNetwork(A_LR, input_dims, n_actions, max_action, name='actor')
+        self.critic_1 = CriticNetwork(C_LR, input_dims, n_actions, name='critic_1')
+        self.critic_2 = CriticNetwork(C_LR, input_dims, n_actions, name='critic_2')
+        self.value = ValueNetwork(C_LR, input_dims, name='value')
+        self.target_value = ValueNetwork(C_LR, input_dims, name='target_value')
 
         self.scale = reward_scale
+        # print(self.scale)
         self.update_network_parameters(tau=1)
 
     def choose_action(self, observation):
@@ -47,7 +44,7 @@ class SAC_agent(object):
 
     def update_network_parameters(self, tau=None):
         if tau is None:
-            tau = self.tau
+            tau = config.tau
         target_value_params = self.target_value.named_parameters()
         value_params = self.value.named_parameters() #輸出參數的名稱（字符串）與這個參數（Parameter類）
 
@@ -79,10 +76,10 @@ class SAC_agent(object):
 
     def learn(self):
 
-        if self.memory.mem_cntr< self.batch_size:
+        if self.memory.mem_cntr< batch_size:
             return
 
-        state,action,reward,new_state,done=self.memory.sample_buffer(self.batch_size)
+        state,action,reward,new_state,done=self.memory.sample_buffer(batch_size)
 
         #創建tensor T.tensor(data, dtype=None, device=None,requires_grad=False)
         reward = T.tensor(reward, dtype=T.float).to(self.actor.device)
@@ -104,7 +101,8 @@ class SAC_agent(object):
 
         # value networks loss and backprop (V=Q-log)
         self.value.optimizer.zero_grad() #將梯度初始化為0
-        value_target = critic_value - log_probs
+        value_target = critic_value - self.scale*log_probs
+        # value_target = critic_value - log_probs
         value_loss = 0.5 * F.mse_loss(value, value_target)
         value_loss.backward(retain_graph=True) #反向傳播,create_graph参数的作用是，如果为True可計算高階微分
         self.value.optimizer.step() #更新優化器學習率
@@ -117,7 +115,8 @@ class SAC_agent(object):
         critic_value = T.min(q1_new_policy, q2_new_policy)
         critic_value = critic_value.view(-1)
 
-        actor_loss=log_probs-critic_value
+        actor_loss=self.scale*log_probs-critic_value
+        # actor_loss = log_probs - critic_value
         actor_loss=T.mean(actor_loss)
         self.actor.optimizer.zero_grad()
         actor_loss.backward(retain_graph=True)
@@ -126,7 +125,8 @@ class SAC_agent(object):
         # critic networks loss amd backprop
         self.critic_1.optimizer.zero_grad()
         self.critic_2.optimizer.zero_grad()
-        q_hat=self.scale*reward+self.gamma*value_  #Q_=aR+r*v_
+        q_hat=self.scale*reward+gamma*value_  #Q_=aR+r*v_
+        # q_hat = reward + gamma * value_
         q1_old_policy = self.critic_1.forward(state, action).view(-1)  #action is from the replay buffer
         q2_old_policy = self.critic_2.forward(state, action).view(-1)       
         critic_1_loss = 0.5 * F.mse_loss(q1_old_policy, q_hat)

@@ -1,0 +1,10 @@
+Method: sac
+Max Episodes: 400
+Max Episodes steps: 400
+LR_A: 0.003
+LR_C: 0.003
+GAMMA: 0.99
+reward_scale: 0.5
+BATCH_SIZE: 256
+layer1_size: 256
+layer2_size: 256

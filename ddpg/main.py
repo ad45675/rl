@@ -19,10 +19,15 @@ ya0000
 2020/11/10
 
 """
+from tensorflow.compat.v1 import ConfigProto
+from tensorflow.compat.v1 import InteractiveSession
+
+config = ConfigProto()
+config.gpu_options.allow_growth = True
+session = InteractiveSession(config=config)
 
 
-
-
+import pybullet_envs
 from env import ArmEnv
 import gym
 import numpy as np
@@ -32,7 +37,7 @@ from gym import wrappers
 #from utils import plot_learning_curve
 import config
 import time
-from RL_brain import DDPG 
+from RL_brain import DDPG
 
 ON_TRAIN = config.ON_TRAIN
 
@@ -47,33 +52,38 @@ else:
 MAX_EPISODES = config.MAX_EPISODES
 
 MAX_EP_STEPS = config.MAX_EP_STEPS
-print(MAX_EPISODES,MAX_EP_STEPS)
 eval_iteration = config.eval_iteration
 cost_iteration = config.cost_iteration
 PATH = time.strftime('%m%d%H%M')
 
-#for eval
-#PATH=config.PATH_EVAL
+# for eval
+# PATH=config.PATH_EVAL
 
-#set env
-env=ArmEnv(Mode)
-#RL method(continuous)
-
-s_dim=env.state_dim
-a_dim=env.action_dim
-#a_bound=[env.joint1_bound[1],env.joint2_bound[1],env.joint3_bound[1],env.joint4_bound[1],env.joint5_bound[1],env.joint6_bound[1]]
-a_bound = [[env.arm1_bound[1], env.arm2_bound[1]]]
-action_dim=6
+# set env
+# env=ArmEnv(Mode)
+# RL method(continuous)
 
 
-#rl = Agent(alpha=0.0003, beta=0.0003, reward_scale=2, env_id=env_id, 
-                # input_dims=env.observation_space.shape, tau=0.005,
-                # env=env, batch_size=256, layer1_size=256, layer2_size=256,
-                # n_actions=env.action_space.shape[0])
+# s_dim=env.state_dim
+# a_dim=env.action_dim
+# # a_bound=[env.joint1_bound[1],env.joint2_bound[1],env.joint3_bound[1],env.joint4_bound[1],env.joint5_bound[1],env.joint6_bound[1]]
+# a_bound = [[env.arm1_bound[1], env.arm2_bound[1]]]
+# action_dim=6
+
+env = gym.make('InvertedPendulumBulletEnv-v0')
+s_dim=env.observation_space.shape[0]
+print(env.observation_space.shape)
+print(env.observation_space.low,env.observation_space.high)
+a_dim=env.action_space.shape[0]
+a_bound=[env.observation_space.high[0]]
+
+# rl = Agent(alpha=0.0003, beta=0.0003, reward_scale=2, env_id=env_id,
+#                 input_dims=env.observation_space.shape, tau=0.005,
+#                 env=env, batch_size=256, layer1_size=256, layer2_size=256,
+#                 n_actions=env.action_space.shape[0])
 rl = DDPG(a_dim, s_dim, a_bound)
 
 def train():
-
     view=True
     step_set, reward_set, avg_reward_set, repeat_set, cost_actor_set, cost_critic_set = [], [], [], [], [], []
     for i in range(MAX_EPISODES):
@@ -83,8 +93,9 @@ def train():
             view=True
             if view:
                 env.render()
-            
+
             a=rl.choose_action(s)
+            # print('a',a)
 
             s_,r,done=env.step(a)
 
@@ -109,7 +120,7 @@ def train():
                 print('Ep: %i | %s | repeat: %d | ep_r: %.1f | step: %i' % (i, '----' if not done else 'done', count_repeat, ep_r, j+1))
                 step_set.append(j+1)
                 reward_set.append(ep_r)
-                avg_reward_set.append(ep_r/(j+1))           
+                avg_reward_set.append(ep_r/(j+1))
                 break
 
 
@@ -133,3 +144,6 @@ def main():
 if __name__ == "__main__":
 
     main()
+
+
+

@@ -1,4 +1,7 @@
+
 import tensorflow as tf
+# tf.disable_v2_behavior()
+tf.compat.v1.disable_eager_execution()
 import numpy as np
 import config
 import os
@@ -18,10 +21,12 @@ neurons_critic = config.neurons_critic  # Critic Network Design
 
 class DDPG(object):
     def __init__(self, a_dim, s_dim, a_bound):
-        self.memory = np.zeros((MEMORY_CAPACITY, s_dim * 2 + a_dim + 1), dtype=np.float32)  # ( s, s_, a, r )
+        print(a_dim,s_dim)
+        self.memory = np.zeros((MEMORY_CAPACITY, s_dim * 2 + a_dim + 1), dtype=np.float32) # ( s, s_, a, r )
         self.pointer = 0
         self.memory_full = False
-        self.sess = tf.Session()
+        # self.sess = tf.Session()
+        self.sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
 
         self.a_dim, self.s_dim, self.a_bound = a_dim, s_dim, a_bound
         self.S = tf.placeholder(tf.float32, [None, s_dim], 's')
