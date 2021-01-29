@@ -1,15 +1,15 @@
 import numpy as np
 
 
-ON_TRAIN = True
-
+ON_TRAIN =True
+PATH_EVAL = ['01210110', '30']
 
 
 epsilon = 0.2
 
-MAX_EPISODES = 1000
-MAX_EP_STEPS = 200
-eval_iteration = 10
+MAX_EPISODES = 500
+MAX_EP_STEPS = 500
+eval_iteration = 1
 cost_iteration = 50
 
 LR_A = 0.001    # learning rate for actor
@@ -29,5 +29,5 @@ Tolerance = 5
 validation_size = 200
 
 TAU = 0.01      # soft replacement
-MEMORY_CAPACITY = 10000
+MEMORY_CAPACITY = 100000
 BATCH_SIZE = 32

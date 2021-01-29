@@ -137,7 +137,7 @@ class my_robot(object):
 
     def simxSetJointTargetPosition(self, new_joint_pos):
         for i in range(jointNum):
-            vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[i], new_joint_pos, STREAMING)
+            vrep.simxSetJointPosition(self.clientID, self.joint_handle[i], new_joint_pos, STREAMING)
 
     def get_object_height(self, handle):
         # 得到物體高度
@@ -191,17 +191,17 @@ class my_robot(object):
 
         vrep.simxPauseCommunication(self.clientID, True)
         for i in range(jointNum):
-            vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[i], joint_angle[i], ONESHOT)
+            vrep.simxSetJointPosition(self.clientID, self.joint_handle[i], joint_angle[i], ONESHOT)
         vrep.simxPauseCommunication(self.clientID, False)
 
     def move_4_joint(self, joint_angle):
         #MOVE JOINT 1,2,3,5
         vrep.simxPauseCommunication(self.clientID, True)
 
-        vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[0], joint_angle[0], ONESHOT)
-        vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[1], joint_angle[1], ONESHOT)
-        vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[2], joint_angle[2], ONESHOT)
-        vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[4], joint_angle[3], ONESHOT)
+        vrep.simxSetJointPosition(self.clientID, self.joint_handle[0], joint_angle[0], ONESHOT)
+        vrep.simxSetJointPosition(self.clientID, self.joint_handle[1], joint_angle[1], ONESHOT)
+        vrep.simxSetJointPosition(self.clientID, self.joint_handle[2], joint_angle[2], ONESHOT)
+        vrep.simxSetJointPosition(self.clientID, self.joint_handle[4], joint_angle[3], ONESHOT)
 
         vrep.simxPauseCommunication(self.clientID, False)
     def enable_suction(self, active):
@@ -245,4 +245,6 @@ class my_robot(object):
 
 if __name__ == '__main__':
     robot = my_robot()
-    robot.test_env()
+    robot.connection()
+    robot.initial()
+    robot.move_all_joint([0,0,0,0,0,0])

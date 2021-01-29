@@ -110,10 +110,9 @@ class my_robot(object):
 
         # 得到plane位置
         err, plane_pos = vrep.simxGetObjectPosition(self.clientID, self.plane, -1, WAIT)
-        POS_MIN, POS_MAX = [plane_pos[0] + x_min, plane_pos[1] + y_min, 0], [plane_pos[0] + x_max, plane_pos[1] + y_max,
-                                                                             0]
+        POS_MIN, POS_MAX = [plane_pos[0] + x_min, plane_pos[1] + y_min,0], [plane_pos[0] + x_max, plane_pos[1] + y_max,0]
         pos = list(np.random.uniform(POS_MIN, POS_MAX))
-
+        pos[2]=0.05
         # 物體隨機擺放
         vrep.simxSetObjectPosition(self.clientID, self.Cuboid, -1, pos, ONESHOT)
 
@@ -123,7 +122,7 @@ class my_robot(object):
         return (self.Cuboid_pos)
 
     def get_EEF_pos(self):
-        _, self.EEF_pos = vrep.simxGetObjectPosition(self.clientID, self.EEF, -1, WAIT)
+        _, self.EEF_pos = vrep.simxGetObjectPosition(self.clientID, self.EEF, -1, BLOCKING)
         return self.EEF_pos
 
     def get_joint_pos(self):
@@ -154,6 +153,17 @@ class my_robot(object):
         # 得到物體位置3D
         err, pos = vrep.simxGetObjectPosition(self.clientID, handle, -1, WAIT)
         return pos
+
+    def orientation(self, handle):
+        # 得到物體位置3D
+        err, euler_angles = vrep.simxGetObjectOrientation(self.clientID, handle, -1, WAIT)
+        return euler_angles
+
+    def EEF_ori(self):
+
+        euler_angles=self.orientation(self.EEF)
+
+        return euler_angles
 
     def show_msg(self, message):
         """ send a message for printing in V-REP """
@@ -204,6 +214,12 @@ class my_robot(object):
         vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[4], joint_angle[3], ONESHOT)
 
         vrep.simxPauseCommunication(self.clientID, False)
+
+    def one_joint(self, i,joint_angle):
+        # MOVE ONE JOINT
+        vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[i], joint_angle, ONESHOT)
+
+
 
     def enable_suction(self, active):
         if active:

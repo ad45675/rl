@@ -33,7 +33,6 @@ class my_robot(object):
         self.plane = 0
         self.work_space = []
         self.EEF = []
-        self.link_handle=np.zeros((5,), np.int)
         # self.initial_joint = [0.0, 0.524, -0.349, 0, -0.785, 0]  # 這是弧度,vrep裡是角度
         self.initial_joint2 = [0, 0, 0.2, 0, 0, 0]  # my_robot_initial
         self.initial_joint = [0.0, 0, 0, 0, 0, 0]  # my_robot_initial
@@ -91,7 +90,7 @@ class my_robot(object):
 
         vrep.simxPauseCommunication(self.clientID, False)
 
-        #self.random_object()
+        # self.random_object()
         #vrep.simxSynchronousTrigger(self.clientID)  # 进行下一步
         vrep.simxGetPingTime(self.clientID)  # 使得该仿真步走完
 
@@ -110,13 +109,19 @@ class my_robot(object):
                                                       BLOCKING)
 
         # 得到plane位置
-        err, plane_pos = vrep.simxGetObjectPosition(self.clientID, self.plane, -1, WAIT)
-        POS_MIN, POS_MAX = [plane_pos[0] + x_min, plane_pos[1] + y_min, 0], [plane_pos[0] + x_max, plane_pos[1] + y_max,
-                                                                             0]
+        err, plane_pos = vrep.simxGetObjectPosition(self.clientID, self.plane, -1, BLOCKING)
+        POS_MIN, POS_MAX = [plane_pos[0] + x_min, plane_pos[1] + y_min,0], [plane_pos[0] + x_max, plane_pos[1] + y_max,0]
+        # print('min', POS_MIN, 'MAX', POS_MAX)
         pos = list(np.random.uniform(POS_MIN, POS_MAX))
 
+        pos[2]=0.049872
+
         # 物體隨機擺放
-        vrep.simxSetObjectPosition(self.clientID, self.Cuboid, -1, pos, ONESHOT)
+
+
+        #for eval
+        pos_eval=[ 0.483295, 0.009622, 0.049872]
+        vrep.simxSetObjectPosition(self.clientID, self.Cuboid, -1, pos_eval, ONESHOT)
 
     def get_cuboid_pos(self):
         self.Cuboid_pos = self.get_position(self.Cuboid)  # 讀物體位置
@@ -124,7 +129,7 @@ class my_robot(object):
         return (self.Cuboid_pos)
 
     def get_EEF_pos(self):
-        _, self.EEF_pos = vrep.simxGetObjectPosition(self.clientID, self.EEF, -1, WAIT)
+        _, self.EEF_pos = vrep.simxGetObjectPosition(self.clientID, self.EEF, -1, BLOCKING)
         return self.EEF_pos
 
     def get_joint_pos(self):
@@ -153,8 +158,19 @@ class my_robot(object):
 
     def get_position(self, handle):
         # 得到物體位置3D
-        err, pos = vrep.simxGetObjectPosition(self.clientID, handle, -1, WAIT)
+        err, pos = vrep.simxGetObjectPosition(self.clientID, handle, -1, BLOCKING)
         return pos
+
+    def orientation(self, handle):
+        # 得到物體位置3D
+        err, euler_angles = vrep.simxGetObjectOrientation(self.clientID, handle, -1,BLOCKING)
+        return euler_angles
+
+    def EEF_ori(self):
+
+        euler_angles=self.orientation(self.EEF)
+
+        return euler_angles
 
     def show_msg(self, message):
         """ send a message for printing in V-REP """
@@ -186,11 +202,6 @@ class my_robot(object):
         # 讀plane id
         res, self.plane = vrep.simxGetObjectHandle(self.clientID, 'Plane', BLOCKING)
 
-        #讀link id
-        for i in range(5):
-            _,self.link_handle[i]=vrep.simxGetObjectHandle(self.clientID,'link'+str(i+1),BLOCKING)
-       
-
         print('handle available!!!')
 
     def move_all_joint(self, joint_angle):
@@ -211,6 +222,12 @@ class my_robot(object):
 
         vrep.simxPauseCommunication(self.clientID, False)
 
+    def one_joint(self, i,joint_angle):
+        # MOVE ONE JOINT
+        vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[i], joint_angle, ONESHOT)
+
+
+
     def enable_suction(self, active):
         if active:
             vrep.simxSetIntegerSignal(self.clientID, self.suction, 1, ONESHOT)
@@ -218,7 +235,7 @@ class my_robot(object):
         else:
             vrep.simxSetIntegerSignal(self.clientID, self.suction, 0, ONESHOT)
             _,value = vrep.simxGetIntegerSignal(self.clientID, self.suction, BLOCKING)
-       
+
 
     def test_env(self):
         self.connection()
@@ -252,15 +269,21 @@ class my_robot(object):
         self.start_sim()
 
 
-
 if __name__ == '__main__':
     joint_pos =[]
     cuboid=[]
     robot = my_robot()
     robot.connection()
-    robot.read_object_id()
-    
-    for i in range(5):
-        print('hi')
-        robot.get_robot_dynamic_para(robot.link_handle[i])
-   
+    robot.start_sim()
+
+    cuboid=robot.get_cuboid_pos()
+
+    robot.set_object_pos(cuboid)
+    robot.enable_suction(True)
+    # action = np.array([0, -0.5, 0, 0], dtype=np.float32)
+    # robot.move_4_joint(action)
+    #
+    # joint_pos=robot.get_joint_pos()
+    # joint_pos=joint_pos .astype(np.float)
+    # # print(joint_pos)
+    # print("joint_pos " ,joint_pos,end="\n")

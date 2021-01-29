@@ -3,7 +3,7 @@
 #3 networks
 #critic>> state + action-->q
 #value >>    state-->v
-#
+#最原始的
 import os
 import torch as T
 import torch.nn.functional as F
@@ -114,19 +114,19 @@ class ActorNetwork(nn.Module):
 
         self.to(self.device)    
 
-    def forward(self, state):
-        prob = self.fc1(state)
-        prob = F.relu(prob)
-        prob = self.fc2(prob)
-        prob = F.relu(prob)
-
-        mu = self.mu(prob)  #mean of the distribution for policy
-        log_std = self.log_std(prob) #standard deviation(標準差)
-        log_std = T.clamp(log_std, min=self.reparam_noise, max=1) #T.clamp(input, min, max, out=None) → 限制在[MIN,MAX]範圍
-        sigma = T.exp(log_std)
-        # sigma  = T.clamp(sigma , min=-20, max=2)
-        # print('sigma ',sigma )
-        return mu, sigma
+    # def forward(self, state):
+    #     prob = self.fc1(state)
+    #     prob = F.relu(prob)
+    #     prob = self.fc2(prob)
+    #     prob = F.relu(prob)
+    #
+    #     mu = self.mu(prob)  #mean of the distribution for policy
+    #     log_std = self.log_std(prob) #standard deviation(標準差)
+    #     log_std = T.clamp(log_std, min=self.reparam_noise, max=2) #T.clamp(input, min, max, out=None) → 限制在[MIN,MAX]範圍
+    #     sigma = T.exp(log_std)
+    #     # sigma  = T.clamp(sigma , min=-20, max=2)
+    #     # print('sigma ',sigma )
+    #     return mu, sigma
 
 
     # def sample_normal(self, state,  reparameterize=True):

@@ -3,43 +3,57 @@ import numpy as np
 
 
 ON_TRAIN = True
-method = 'sac'
+sac =True
+if sac:
+
+    hidden_sizes=[256,256]
+
+    reparameterize_critic=False
+    reparameterize_actor=True
+    # PATH_EVAL = ['12011347', '10']
+    A_LR = 0.001
+    C_LR = 0.001
+    gamma= 0.9  # reward discount
+    reward_scale = 0.001
+
+    tau = 0.01  # soft replacement
+    MEMORY_CAPACITY = 10000
+
+    # layer4_size = 64
+
+    batch_size = 32
+
+    Tolerance=5
+    PATH_EVAL=0
+    MAX_EPISODES = 500
+    MAX_EP_STEPS = 200
+    eval_iteration = 10
+    cost_iteration = 50
+
+else:
 
 
-# PATH_EVAL = ['12011347', '10']
-A_LR = 0.0003
-C_LR = 0.0003
-gamma = 0.99  # reward discount
-reward_scale = 0.2
 
-tau = 0.005  # soft replacement
-MEMORY_CAPACITY = 1000000
-layer1_size = 256
-layer2_size = 256
-batch_size = 256
+    # PATH_EVAL = ['04261644', '999']  # for eval
+    PATH_EVAL = ['10190058', '99']  # yao
 
+    MAX_EPISODES = 500
+    MAX_EP_STEPS = 200
+    eval_iteration = 10
+    cost_iteration = 50
 
-Tolerance=5
+    LR_A = 0.001  # learning rate for actor
+    LR_C = 0.001  # learning rate for critic
+    gamma = 0.9  # reward discount
+    tau = 0.01  # soft replacement
 
+    MEMORY_CAPACITY = 10000
+    batch_size = 32
+    neurons_actor = [64, 128, 64]
+    layer_actor = np.size(neurons_actor) + 1
+    neurons_critic = [64, 128, 256, 128]
+    layer_critic = np.size(neurons_critic) + 1
+    Tolerance = 5
 
-# epsilon = 0.2
-#
-# MAX_EPISODES = 20
-# MAX_EP_STEPS = 200
-# eval_iteration = 10
-#
-# A_LR = 0.00001    # learning rate for actor
-# C_LR = 0.00002    # learning rate for critic
-# GAMMA = 0.9     # reward discount
-# A_UPDATE_STEPS = 10
-# C_UPDATE_STEPS = 10
-# BATCH = 32
-# neurons_actor = [64, 128, 64]
-# layer_actor = np.size(neurons_actor) + 1
-# neurons_critic = [64, 128, 256, 128]
-# layer_critic = np.size(neurons_critic) + 1
-#
-# Tolerance = 5
-#
-# # for performance
-# validation_size = 200
+    # for performance
+    validation_size = 50

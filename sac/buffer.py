@@ -8,11 +8,12 @@ class replaybuffer():
 
         self.mem_size = max_size
         self.mem_cntr = 0
-        self.state_memory = np.zeros((self.mem_size, input_shape))
-        self.new_state_memory = np.zeros((self.mem_size, input_shape))
-        self.action_memory = np.zeros((self.mem_size, n_actions))
-        self.reward_memory = np.zeros(self.mem_size)
+        self.state_memory = np.zeros((self.mem_size, input_shape),dtype=np.float32)
+        self.new_state_memory = np.zeros((self.mem_size, input_shape),dtype=np.float32)
+        self.action_memory = np.zeros((self.mem_size, n_actions),dtype=np.float32)
+        self.reward_memory = np.zeros(self.mem_size,dtype=np.float32)
         self.terminal_memory = np.zeros(self.mem_size, dtype=np.bool)
+        self.mem_full=False
 
 
 
@@ -24,8 +25,10 @@ class replaybuffer():
         self.action_memory[index] = action
         self.reward_memory[index] = reward
         self.terminal_memory[index] = done
-
         self.mem_cntr += 1
+
+        if self.mem_cntr > self.mem_size:
+            self.mem_full = True
 
     def sample_buffer(self, batch_size):
         max_mem = min(self.mem_cntr, self.mem_size)

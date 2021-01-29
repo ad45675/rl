@@ -1,4 +1,4 @@
-
+#最原始的
 import os
 import torch as T
 import torch.nn.functional as F
@@ -125,8 +125,8 @@ class SAC_agent(object):
         # critic networks loss amd backprop
         self.critic_1.optimizer.zero_grad()
         self.critic_2.optimizer.zero_grad()
-        q_hat=self.scale*reward+gamma*value_  #Q_=aR+r*v_
-        # q_hat = reward + gamma * value_
+        # q_hat=self.scale*reward+gamma*value_  #Q_=aR+r*v_
+        q_hat = reward + gamma * value_
         q1_old_policy = self.critic_1.forward(state, action).view(-1)  #action is from the replay buffer
         q2_old_policy = self.critic_2.forward(state, action).view(-1)       
         critic_1_loss = 0.5 * F.mse_loss(q1_old_policy, q_hat)
