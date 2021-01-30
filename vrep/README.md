@@ -1,5 +1,11 @@
-* DDPG_version 
+* DDPG_version  
+>>>--用來測試的版本 
 * sac_version 
+>>>--用來測試的版本
+* DDPG_good_version  
+>>>--訓練三軸到固定點 
+* sac_good_version
+>>>--訓練三軸到隨機點 
 * secene 是場景
 
 ### git 指令
