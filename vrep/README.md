@@ -2,7 +2,7 @@
 * sac_version 
 * secene 是場景
 
-###git 指令
+### git 指令
 
 1.git clone 到自己的git  
 2.cd要修改的資料夾  
