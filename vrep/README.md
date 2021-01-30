@@ -20,5 +20,5 @@
 8.git push origin將修改完的上傳到git  
 
 *******如果git push 不上去*******  
-線上版本比點腦的新  
+線上版本比電腦的新  
 sol:先拉在推 git pull --rebase
