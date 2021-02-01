@@ -6,7 +6,7 @@ sac = True
 hidden_sizes=[256,256]
 reparameterize_critic=False
 reparameterize_actor=True
-PATH_EVAL = ['01261124', '98']  # for eval
+PATH_EVAL = ['01261124', '99']  # for eval
 
 MAX_EPISODES = 500
 MAX_EP_STEPS = 500

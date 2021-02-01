@@ -88,8 +88,7 @@ class robot_env(object):
         # return state containing joint ,EFF ,target ,dis
         # robot to initial pos and random the target
 
-        #self.my_robot.stop_sim()
-        #self.my_robot.start_sim()
+        self.joint=[0,0,0,0,0,0]
         self.my_robot.move_all_joint([0,0,0,0,0,0])
         print('reset')
 
@@ -99,12 +98,31 @@ class robot_env(object):
 
     def get_state(self):
         # state:{物體位置,末端點位置}
-        # self.joint_pos = self.my_robot.get_joint_pos()  # dim=6
-        # self.joint_pos=np.round(self.joint_pos,5)
-        # Info, EulerAngle_vrep, self.EulerAngle, Position = FK.ForwardKinemetics(self.joint_pos , DH_table)
-        # Position=np.round(Position,4)
+
+
+        Info, EulerAngle_vrep, self.EulerAngle,test_EEF= FK.ForwardKinemetics(self.joint , DH_table)
+        test_EEF=np.round(test_EEF,4)
+
+        # record data
+        test_EEF_pos_record = np.reshape(test_EEF,(1,3))
+        path = './Trajectory/'
+        name = 'test_EEF.txt'
+        f = open(path+name,mode='a')
+        np.savetxt(f,test_EEF_pos_record, fmt='%f')
+        f.close()
+
+
         EEF_pos = self.my_robot.get_EEF_pos()  # dim=3
         EEF_pos = np.round(EEF_pos , 4)
+
+        # record data
+        EEF_pos_record = np.reshape(EEF_pos,(1,3))
+        path = './Trajectory/'
+        name = 'vrep_EEF.txt'
+        f = open(path+name,mode='a')
+        np.savetxt(f,EEF_pos_record, fmt='%f')
+        f.close()
+
 
         cubid_pos = self.my_robot.get_cuboid_pos()  # dim=3
         # print('cuboid_pos',cubid_pos)
