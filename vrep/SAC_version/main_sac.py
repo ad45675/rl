@@ -15,7 +15,7 @@ eval_iteration = config.eval_iteration
 PATH = time.strftime('%m%d%H%M')
 ON_TRAIN = config.ON_TRAIN
 initial_joint = config.initial_joint
-render = config.render
+# render = config.render
 
 
 
@@ -54,7 +54,7 @@ def train():
     #------record memory------#
     step_set, reward_set, avg_reward_set, state_set ,action_set,joint1_set,joint2_set,joint3_set,joint5_set,distance_set= [], [], [], [], [], [], [], [], [], []
     for i in range(MAX_EPISODES):
-        s = env.reset(initial_joint,render)
+        s = env.reset()
         done = False
         ep_r = 0
         for j in range(MAX_EP_STEPS):
@@ -62,7 +62,7 @@ def train():
 
             action_set.append(a)
 
-            s_, r, done= env.step(a,render)
+            s_, r, done= env.step(a)
 
             agent.remember(s, a ,r, s_, done)
 
@@ -116,7 +116,7 @@ def Eval():
 
     agent.load_models(PATH_EVAL)
     env.initial()
-    s = env.reset(initial_joint, render)
+    s = env.reset(render)
     for i in range(300):
         a=agent.choose_action(s)
         s_,r,done=env.step(a,render)

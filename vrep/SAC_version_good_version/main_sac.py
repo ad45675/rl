@@ -121,11 +121,11 @@ def Eval():
     agent.load_models(PATH_EVAL)
     env.initial()
     s=env.reset()
-    for i in range(300):
+    for i in range(100):
         a=agent.choose_action(s)
         s_,r,done=env.step(a)
         s=s_
-        # print(i)
+        print(i)
 
 def plot(data, xlabel, ylabel, title, save_location):
     plt.plot(np.arange(data.shape[0]), data)

@@ -1,7 +1,7 @@
 import numpy as np
 
 ON_TRAIN = True
-render=True
+render = True
 
 
 method = 'sac'
