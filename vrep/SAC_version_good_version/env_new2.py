@@ -33,6 +33,7 @@ import Kinematics as FK
 from IK_FindOptSol import FindOptSol
 from simulation_robot import simulation_robot as id_robot
 from robot_vrep import my_robot
+from controller import controller
 
 
 def creat_path(path):
@@ -79,6 +80,8 @@ class robot_env(object):
         self.degtorad = math.pi / 180  # 角度轉弧度
         self.my_robot = my_robot()
         self.my_robot.connection()
+        self.joint_cmd = np.zeros((6,),np.float)
+        self.vs = np.zeros((6,),np.float)
 
     def initial(self):
         self.my_robot.stop_sim()
@@ -89,7 +92,7 @@ class robot_env(object):
         # robot to initial pos and random the target
 
         self.joint=[0,0,0,0,0,0]
-        self.my_robot.move_all_joint([0,0,0,0,0,0])
+        self.my_robot.move_all_joint(self.joint)
         print('reset')
 
         #self.my_robot.start_sim()
@@ -115,14 +118,14 @@ class robot_env(object):
         EEF_pos = self.my_robot.get_EEF_pos()  # dim=3
         EEF_pos = np.round(EEF_pos , 4)
 
-        # record data
+        ##################### record data #####################
         EEF_pos_record = np.reshape(EEF_pos,(1,3))
         path = './Trajectory/'
         name = 'vrep_EEF.txt'
         f = open(path+name,mode='a')
         np.savetxt(f,EEF_pos_record, fmt='%f')
         f.close()
-
+        ##################### record data #####################
 
         cubid_pos = self.my_robot.get_cuboid_pos()  # dim=3
         # print('cuboid_pos',cubid_pos)
@@ -141,36 +144,81 @@ class robot_env(object):
         done = False
         outbound=False
         reward = 0
-        optimalsol_set=[]
-        # print('action',action)
-        # EEF_pos = self.my_robot.get_EEF_pos()  # dim=3
 
+
+
+        ##------------vrep 的------------##
         joint_pos = self.my_robot.get_joint_pos()  # dim=6
 
-        # print('action', action[1])
+        ##################### record data #####################
+        joint_origin_record = np.reshape(joint_pos,(1,6))
+        path = './Trajectory/'
+        name = 'joint_origin_record.txt'
+        f = open(path+name,mode='a')
+        np.savetxt(f,joint_origin_record , fmt='%f')
+        f.close()
+        ##################### record data #####################
 
-        # print('ACTION', action[1] * self.radtodeg)
+
+
         time.sleep(0.2)
         joint_pos[0] = joint_pos[0] + action[0]
         joint_pos[1] = joint_pos[1] + action[1]
         joint_pos[2] = joint_pos[2] + action[2]
-        # joint_pos[4] = joint_pos[4] + action[3]
-        # print('joint_after', joint_pos[1]* self.radtodeg)
+        joint_pos[3] = joint_pos[3] +0
+        joint_pos[4] = joint_pos[4] +0
+        joint_pos[5] = joint_pos[5] +0
+
+        ##################### record data #####################
+        vrep_joint = np.reshape(joint_pos,(1,6))
+        path = './Trajectory/'
+        name = 'vrep_joint.txt'
+        f = open(path+name,mode='a')
+        np.savetxt(f,vrep_joint , fmt='%f')
+        f.close()
+        ##################### record data #####################
+
+
+        ##------------算 的------------##
+        self.joint_cmd[0] = self.joint[0] + action[0]
+        self.joint_cmd[1] = self.joint[1] + action[1]
+        self.joint_cmd[2] = self.joint[2] + action[2]
+        self.joint_cmd[3] = self.joint[3]
+        self.joint_cmd[4] = self.joint[4]
+        self.joint_cmd[5] = self.joint[5]
+
+        ##################### record data #####################
+        joint_record = np.reshape(self.joint_cmd,(1,6))
+        path = './Trajectory/'
+        name = 'joint_record.txt'
+        f = open(path+name,mode='a')
+        np.savetxt(f,joint_record , fmt='%f')
+        f.close()
+        ##################### record data #####################
 
         outbound = self.check_bound(joint_pos,outbound)
 
 
         if not outbound:
-            self.my_robot.move_all_joint(joint_pos)
+            # self.my_robot.move_all_joint(joint_pos)
+            self.joint = self.joint_cmd
 
-            # record data
-            # joint_pos_set=np.reshape(joint_pos,(1,6))
-            # path = './Trajectory/'
-            # name = 'Joint.txt'
-            # f = open(path + name, mode='a')
-            # np.savetxt(f, joint_pos_set, fmt='%f')
-            # f.close()
+            ##------------算 的------------##
+            joint_pos_out, vs_out = controller(self.joint_cmd, self.joint, self.vs)
 
+            ##################### record data #####################
+            joint_out_record = np.reshape(joint_pos_out, (1, 6))
+            path = './Trajectory/'
+            name = 'joint_out_record .txt'
+            f = open(path + name, mode='a')
+            np.savetxt(f, joint_out_record, fmt='%f')
+            f.close()
+            ##################### record data #####################
+
+            self.joint = joint_pos_out
+            self.vs = vs_out
+
+            self.my_robot.move_all_joint(self.joint)
         else:
             reward-=1
 
@@ -197,7 +245,7 @@ class robot_env(object):
             reward=-distance+0.1
 
         self.distance=distance
-        print('dis',self.distance)
+        # print('dis',self.distance)
         if (self.distance < 0.05 ):
             euler_angles = self.my_robot.EEF_ori()
             joint_pos[4] = joint_pos[4] - euler_angles[1]
