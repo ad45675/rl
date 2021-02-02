@@ -81,38 +81,42 @@ class robot_env(object):
         self.degtorad = math.pi / 180  # 角度轉弧度
         self.my_robot = my_robot()
         self.my_robot.connection()
-        self.joint = np.zeros((6,1),np.float)
+        self.joint_cmd = np.zeros((6,),np.float)
+        self.vs = np.zeros((6,),np.float)
+
 
     def initial(self):
         self.my_robot.stop_sim()
         self.my_robot.start_sim()
 
-    def reset(self,initial_joint,render):
+    def reset(self):
         # return state containing joint ,EFF ,target ,dis
         # robot to initial pos and random the target
-        self.repeat = 0
-        self.joint=initial_joint
-        self.vs = np.zeros((6,1),np.float)
 
-        if render:
-            self.my_robot.move_all_joint(self.joint)
+        self.joint = [0, 0, 0, 0, 0, 0]
+        # if render:
+        self.my_robot.move_all_joint(self.joint)
         print('reset')
 
         # 目標物隨機擺放
 
         self.my_robot.random_object()
-        return self.get_state(render)
+        return self.get_state()
 
-    def get_state(self,render):
+    def get_state(self):
+        ## state 是 6 個joint 和末端點與物體距離
+
 
         #  順向運動學得到末端點資訊
         Info, EulerAngle_vrep, EulerAngle, EEF_pos = FK.ForwardKinemetics(self.joint, DH_table)
-
+        EEF_pos = np.round(EEF_pos, 4)
 
         # 從 vrep 得到末端點資訊
-        if render:
-            EEF_pos = self.my_robot.get_EEF_pos()  # dim=3
-            EEF_pos = np.round(EEF_pos , 4)
+        # if render:
+        #     vrep_EEF_pos = self.my_robot.get_EEF_pos()  # dim=3
+        #     vrep_EEF_pos = np.round(vrep_EEF_pos , 4)
+        #     # joint_pos = self.my_robot.get_joint_pos()  # dim=6
+
 
         # 從 vrep 得到目標位置
         cubid_pos = self.my_robot.get_cuboid_pos()  # dim=3
@@ -122,59 +126,60 @@ class robot_env(object):
         diffence = [(cubid_pos[0] - EEF_pos[0]), (cubid_pos[1] - EEF_pos[1]), (cubid_pos[2] - EEF_pos[2])]
         self.distance = np.sqrt(pow(diffence[0], 2) + pow(diffence[1], 2) + pow(diffence[2], 2))
 
-        s = np.hstack((EEF_pos,  cubid_pos, self.distance ))
+        s = np.hstack((self.joint,  self.distance ))
 
         return s
 
 
-    def step(self, action,render):
-        joint_pos_cmd = np.zeros((6,), np.float)
+    def step(self, action):
+        #action 是4個joint的位移
+
+
         done = False
-        outbound=False
+        outbound = False
         reward = 0
 
-        if render:
-            joint_pos = self.my_robot.get_joint_pos()  # dim=6
-            self.joint = joint_pos
+        # if render:
+        #     joint_pos = self.my_robot.get_joint_pos()  # dim=6
+        #     self.joint = joint_pos
 
         time.sleep(0.2)
-        joint_pos_cmd[0] = self.joint[0] + action[0]
-        joint_pos_cmd[1] = self.joint[1] + action[1]
-        joint_pos_cmd[2] = self.joint[2] + action[2]
-        joint_pos_cmd[3] = self.joint[3]
-        joint_pos_cmd[4] = self.joint[4] + action[3]
-        joint_pos_cmd[5] = self.joint[5]
+        self.joint_cmd[0] = self.joint[0] + action[0]
+        self.joint_cmd[1] = self.joint[1] + action[1]
+        self.joint_cmd[2] = self.joint[2] + action[2]
+        self.joint_cmd[3] = self.joint[3]
+        self.joint_cmd[4] = self.joint[4] + action[3]
+        self.joint_cmd[5] = self.joint[5]
 
 
-        outbound = self.check_bound(joint_pos_cmd,outbound) #------joint space bound
+
+        outbound = self.check_bound(self.joint_cmd,outbound) #------joint space bound
 
 
         if not outbound:
-            joint_pos_out, vs_out = controller(joint_pos_cmd, self.joint, self.vs)
-            print('joint_pos_out',joint_pos_out)
+            self.joint = self.joint_cmd
+            joint_pos_out, vs_out = controller(self.joint_cmd, self.joint, self.vs)
             self.joint = joint_pos_out
             self.vs = vs_out
-            if render:
-                # joint = self.joint.tolist
-                joint = self.joint.reshape(1,6)
-                print('joint----', joint.shape)
-                self.my_robot.move_all_joint(joint  )
+            self.my_robot.move_all_joint(self.joint)
+
         else:
             joint_pos_out, vs_out = controller(self.joint, self.joint, self.vs)
             self.joint = joint_pos_out
             self.vs = vs_out
 
-            if render:
-                joint = self.joint.tolist
-                self.my_robot.move_all_joint(joint)
+                # joint = self.joint.reshape(1, 6)
+            self.my_robot.move_all_joint(self.joint)
 
-            self.repeat +=1
+            # self.repeat +=1
             reward-=1
 
 
         Info, EulerAngle_vrep, EulerAngle, EEF_pos = FK.ForwardKinemetics(self.joint , DH_table)
-        if render:
-            EEF_pos = self.my_robot.get_EEF_pos()  # dim=3
+
+        # if render:
+        #     vrep_EEF_pos = self.my_robot.get_EEF_pos()  # dim=3
+
         c_out = self.check_c_space_bound(EEF_pos)       #------卡式空間限制
         if c_out:
             reward=reward-1
@@ -198,20 +203,20 @@ class robot_env(object):
         if (cubid_pos[0]-0.05 < EEF_pos[0] <cubid_pos[0]+0.05 and cubid_pos[1]-0.05 < EEF_pos[1] <cubid_pos[1]+0.05 and cubid_pos[2]< EEF_pos[2] <cubid_pos[2]+0.005):
             suction_value = self.my_robot.enable_suction(True)
 
-            if suction_value ==1:
+            if suction_value == 1:
                 print('suction enable')
-                joint_pos_cmd[0] = self.joint[0]
-                joint_pos_cmd[1] = -50*self.degtorad
-                joint_pos_cmd[2] = self.joint[2]
-                joint_pos_cmd[3] = self.joint[3]
-                joint_pos_cmd[4] = self.joint[4]
-                joint_pos_cmd[5] = self.joint[5]
-                joint_pos_out, vs_out = controller(joint_pos_cmd, self.joint, self.vs)
+                joint_cmd[0] = self.joint[0]
+                joint_cmd[1] = -50*self.degtorad
+                joint_cmd[2] = self.joint[2]
+                joint_cmd[3] = self.joint[3]
+                joint_cmd[4] = self.joint[4]
+                joint_cmd[5] = self.joint[5]
+                joint_pos_out, vs_out = controller(joint_cmd, self.joint, self.vs)
                 self.joint = joint_pos_out
                 self.vs = vs_out
-                if render:
-                    joint = self.joint.tolist
-                    self.my_robot.move_all_joint(joint)
+                # if render:
+                #     # joint = self.joint.reshape(1, 6)
+                #     self.my_robot.move_all_joint(self.joint)
 
 
             time.sleep(0.5)
@@ -277,13 +282,15 @@ class robot_env(object):
 
 
 if __name__ == '__main__':
+    render=True
     env = robot_env()
-    env.reset()
+    env.initial()
+    env.reset(render)
     # time.sleep(10)
     # while True:
     time.sleep(5)
-    action = np.array([0, 0, 0, -0.5], dtype=np.float32)
-    env.my_robot.move_4_joint(action)
+    action = np.array([0.03, 0.03, 0.03, -0.03], dtype=np.float32)
+    env.step(action,render)
     # env.step(env.sample_action())
     print(action *env.radtodeg)
     time.sleep(10)
