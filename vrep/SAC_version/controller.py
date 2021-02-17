@@ -37,4 +37,4 @@ def controller(Pr,ps,vs):
     out_joint=np.squeeze(np.transpose(ps))
     out_joint_vel=np.squeeze(np.transpose(vs))
 
-    return out_joint,out_joint_vel
+    return out_joint,out_joint_vel,ts

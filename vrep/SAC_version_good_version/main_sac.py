@@ -121,7 +121,7 @@ def Eval():
     agent.load_models(PATH_EVAL)
     env.initial()
     s=env.reset()
-    for i in range(100):
+    for i in range(300):
         a=agent.choose_action(s)
         s_,r,done=env.step(a)
         s=s_

@@ -151,14 +151,21 @@ def save_parameter():
         f.writelines("Tolerance: {}\n".format(config.Tolerance))
 
 def Eval():
-    rl.restore(PATH_EVAL)
+    if sac:
+        print(PATH_EVAL)
+        rl.load_models(PATH_EVAL)
+    else:
+        rl.restore(PATH_EVAL)
     env.render()
     env.viewer.set_vsync(True)
     s = env.reset()
     while True:
         env.render()
         a = rl.choose_action(s)
-        s, r, done = env.step(a, [0, 0])
+        if sac:
+            s, r, done = env.step(a)
+        else:
+            s, r, done = env.step(a, [0, 0])
 
 def Eval_train():
     # special state

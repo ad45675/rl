@@ -148,35 +148,35 @@ class robot_env(object):
 
 
         ##------------vrep 的------------##
-        joint_pos = self.my_robot.get_joint_pos()  # dim=6
-
-        ##################### record data #####################
-        joint_origin_record = np.reshape(joint_pos,(1,6))
-        path = './Trajectory/'
-        name = 'joint_origin_record.txt'
-        f = open(path+name,mode='a')
-        np.savetxt(f,joint_origin_record , fmt='%f')
-        f.close()
-        ##################### record data #####################
-
-
-
-        time.sleep(0.2)
-        joint_pos[0] = joint_pos[0] + action[0]
-        joint_pos[1] = joint_pos[1] + action[1]
-        joint_pos[2] = joint_pos[2] + action[2]
-        joint_pos[3] = joint_pos[3] +0
-        joint_pos[4] = joint_pos[4] +0
-        joint_pos[5] = joint_pos[5] +0
-
-        ##################### record data #####################
-        vrep_joint = np.reshape(joint_pos,(1,6))
-        path = './Trajectory/'
-        name = 'vrep_joint.txt'
-        f = open(path+name,mode='a')
-        np.savetxt(f,vrep_joint , fmt='%f')
-        f.close()
-        ##################### record data #####################
+        # joint_pos = self.my_robot.get_joint_pos()  # dim=6
+        #
+        # ##################### record data #####################
+        # joint_origin_record = np.reshape(joint_pos,(1,6))
+        # path = './Trajectory/'
+        # name = 'joint_origin_record.txt'
+        # f = open(path+name,mode='a')
+        # np.savetxt(f,joint_origin_record , fmt='%f')
+        # f.close()
+        # ##################### record data #####################
+        #
+        #
+        #
+        # time.sleep(0.2)
+        # joint_pos[0] = joint_pos[0] + action[0]
+        # joint_pos[1] = joint_pos[1] + action[1]
+        # joint_pos[2] = joint_pos[2] + action[2]
+        # joint_pos[3] = joint_pos[3] +0
+        # joint_pos[4] = joint_pos[4] +0
+        # joint_pos[5] = joint_pos[5] +0
+        #
+        # ##################### record data #####################
+        # vrep_joint = np.reshape(joint_pos,(1,6))
+        # path = './Trajectory/'
+        # name = 'vrep_joint.txt'
+        # f = open(path+name,mode='a')
+        # np.savetxt(f,vrep_joint , fmt='%f')
+        # f.close()
+        # ##################### record data #####################
 
 
         ##------------算 的------------##
@@ -188,35 +188,38 @@ class robot_env(object):
         self.joint_cmd[5] = self.joint[5]
 
         ##################### record data #####################
-        joint_record = np.reshape(self.joint_cmd,(1,6))
-        path = './Trajectory/'
-        name = 'joint_record.txt'
-        f = open(path+name,mode='a')
-        np.savetxt(f,joint_record , fmt='%f')
-        f.close()
-        ##################### record data #####################
+        # joint_record = np.reshape(self.joint_cmd,(1,6))
+        # path = './Trajectory/'
+        # name = 'joint_record.txt'
+        # f = open(path+name,mode='a')
+        # np.savetxt(f,joint_record , fmt='%f')
+        # f.close()
+        # ##################### record data #####################
 
-        outbound = self.check_bound(joint_pos,outbound)
+        outbound = self.check_bound(self.joint_cmd,outbound)
 
 
         if not outbound:
             # self.my_robot.move_all_joint(joint_pos)
-            self.joint = self.joint_cmd
+            # self.joint = self.joint_cmd
 
             ##------------算 的------------##
             joint_pos_out, vs_out = controller(self.joint_cmd, self.joint, self.vs)
+            error=self.joint_cmd-joint_pos_out
+            self.joint = joint_pos_out
+            self.vs = vs_out
 
             ##################### record data #####################
-            joint_out_record = np.reshape(joint_pos_out, (1, 6))
+            error_record = np.reshape(error, (1, 6))
+            # print(joint_out_record)
             path = './Trajectory/'
-            name = 'joint_out_record .txt'
+            name = 'error_record.txt'
             f = open(path + name, mode='a')
-            np.savetxt(f, joint_out_record, fmt='%f')
+            np.savetxt(f,error_record, fmt='%f')
             f.close()
             ##################### record data #####################
 
-            self.joint = joint_pos_out
-            self.vs = vs_out
+
 
             self.my_robot.move_all_joint(self.joint)
         else:

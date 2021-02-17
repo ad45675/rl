@@ -2,10 +2,10 @@ import numpy as np
 
 
 
-ON_TRAIN = True
+ON_TRAIN = False
 sac =True
 if sac:
-
+    PATH_EVAL = ['02021031', '48']  # yao
     hidden_sizes=[256,256]
 
     reparameterize_critic=False
@@ -24,7 +24,7 @@ if sac:
     batch_size = 32
 
     Tolerance=5
-    PATH_EVAL=0
+
     MAX_EPISODES = 500
     MAX_EP_STEPS = 200
     eval_iteration = 10

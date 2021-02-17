@@ -120,12 +120,12 @@ class my_robot(object):
 
 
         #for eval
-        pos_eval=[ 0.483295, 0.009622, 0.049872]
-        vrep.simxSetObjectPosition(self.clientID, self.Cuboid, -1, pos_eval, ONESHOT)
+        # pos_eval=[ 0.483295, 0.009622, 0.049872]
+        vrep.simxSetObjectPosition(self.clientID, self.Cuboid, -1, pos, ONESHOT)
 
     def get_cuboid_pos(self):
         self.Cuboid_pos = self.get_position(self.Cuboid)  # 讀物體位置
-        self.Cuboid_pos[2] += self.get_object_height(self.Cuboid)  # 得到物體表面位置
+        # self.Cuboid_pos[2] += self.get_object_height(self.Cuboid)  # 得到物體表面位置
         return (self.Cuboid_pos)
 
     def get_EEF_pos(self):
@@ -235,6 +235,8 @@ class my_robot(object):
         else:
             vrep.simxSetIntegerSignal(self.clientID, self.suction, 0, ONESHOT)
             _,value = vrep.simxGetIntegerSignal(self.clientID, self.suction, BLOCKING)
+
+        return value
 
 
     def test_env(self):

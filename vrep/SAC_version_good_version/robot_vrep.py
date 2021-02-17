@@ -210,6 +210,10 @@ class my_robot(object):
         for i in range(jointNum):
             vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[i], joint_angle[i], ONESHOT)
         vrep.simxPauseCommunication(self.clientID, False)
+        # vrep.simxSynchronousTrigger(self.clientID)  # 進行下一步
+        # vrep.simxGetPingTime(self.clientID)  # 使得該仿真步走完
+
+
 
     def move_4_joint(self, joint_angle):
         #MOVE JOINT 1,2,3,5
@@ -221,6 +225,7 @@ class my_robot(object):
         vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[4], joint_angle[3], ONESHOT)
 
         vrep.simxPauseCommunication(self.clientID, False)
+
 
     def one_joint(self, i,joint_angle):
         # MOVE ONE JOINT

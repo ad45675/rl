@@ -58,6 +58,7 @@ def train():
         done = False
         ep_r = 0
         for j in range(MAX_EP_STEPS):
+
             a = agent.choose_action(s)
 
             action_set.append(a)
@@ -116,10 +117,10 @@ def Eval():
 
     agent.load_models(PATH_EVAL)
     env.initial()
-    s = env.reset(render)
+    s = env.reset()
     for i in range(300):
         a=agent.choose_action(s)
-        s_,r,done=env.step(a,render)
+        s_,r,done=env.step(a)
         s=s_
         # print(i)
 
@@ -191,7 +192,7 @@ def save_parameter():
     with open('./model/' + PATH + '/train/parameter.txt', 'w') as f:
 
         f.writelines("Method: {}\n".format('sac'))
-        # f.writelines("epsilon: {}\n".format(config.epsilon))
+        f.writelines("state: {}\naction: {}\n a_bound:{}\n".format(config.state_dim,config.action_dim,config.a_bound))
         f.writelines("Max Episodes: {}\nMax Episodes steps: {}\n".format(MAX_EPISODES, MAX_EP_STEPS))
         f.writelines("LR_A: {}\nLR_C: {}\nGAMMA: {}\n".format(config.A_LR, config.C_LR, config.gamma))
         f.writelines("reward_scale: {}\n".format(config.reward_scale))

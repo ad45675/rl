@@ -119,21 +119,25 @@ class robot_env(object):
 
 
         # 從 vrep 得到目標位置
-        cubid_pos = self.my_robot.get_cuboid_pos()  # dim=3
+        self.cubid_pos = self.my_robot.get_cuboid_pos()  # dim=3
 
 
         # 末端點 與 目標物距離
-        diffence = [(cubid_pos[0] - EEF_pos[0]), (cubid_pos[1] - EEF_pos[1]), (cubid_pos[2] - EEF_pos[2])]
+        diffence = [(self.cubid_pos[0] - EEF_pos[0]), (self.cubid_pos[1] - EEF_pos[1]), (self.cubid_pos[2] - EEF_pos[2])]
         self.distance = np.sqrt(pow(diffence[0], 2) + pow(diffence[1], 2) + pow(diffence[2], 2))
 
-        s = np.hstack((self.joint,  self.distance ))
+        # xy_diffence = [(self.cubid_pos[0] - EEF_pos[0]), (self.cubid_pos[1] - EEF_pos[1])]
+        # self.xy_distance = np.sqrt(pow(xy_diffence[0], 2) + pow(xy_diffence[1], 2))
+        # self.z_distance = abs((self.cubid_pos[2] - EEF_pos[2]))
+
+        s = np.hstack((self.joint, self.cubid_pos, self.distance ))
 
         return s
 
 
     def step(self, action):
         #action 是4個joint的位移
-
+        joint_pos_out = np.zeros((6,),np.float)
 
         done = False
         outbound = False
@@ -157,24 +161,45 @@ class robot_env(object):
 
 
         if not outbound:
-            self.joint = self.joint_cmd
-            joint_pos_out, vs_out = controller(self.joint_cmd, self.joint, self.vs)
-            self.joint = joint_pos_out
-            self.vs = vs_out
-            self.my_robot.move_all_joint(self.joint)
+            # self.joint = self.joint_cmd
 
+            while (abs(math.pow(sum((joint_pos_out-self.joint_cmd)*(joint_pos_out-self.joint_cmd)),0.5))>0.005):
+                joint_pos_out, vs_out,ts = controller(self.joint_cmd, self.joint, self.vs)
+                self.joint = joint_pos_out
+                self.vs = vs_out
+
+           # self.my_robot.move_all_joint(self.joint)
+
+
+
+            ##################### record data #####################
+            # error_record = np.reshape(error, (1, 6))
+            # # print(joint_out_record)
+            # path = './Trajectory/'
+            # name = 'error_record.txt'
+            # f = open(path + name, mode='a')
+            # np.savetxt(f, error_record, fmt='%f')
+            # f.close()
+            ##################### record data #####################
         else:
-            joint_pos_out, vs_out = controller(self.joint, self.joint, self.vs)
-            self.joint = joint_pos_out
-            self.vs = vs_out
-
-                # joint = self.joint.reshape(1, 6)
+            while (abs(math.pow(sum((joint_pos_out - self.joint_cmd) * (joint_pos_out - self.joint_cmd)), 0.5)) > 0.005):
+                joint_pos_out, vs_out,ts = controller(self.joint, self.joint, self.vs)
+                self.joint = joint_pos_out
+                self.vs = vs_out
             self.my_robot.move_all_joint(self.joint)
 
-            # self.repeat +=1
             reward-=1
 
 
+        #################### record data #####################
+        # ts_record = np.reshape(ts, (1, 6))
+        # # print(joint_out_record)
+        # path = './Trajectory/'
+        # name = 'ts_record.txt'
+        # f = open(path + name, mode='a')
+        # np.savetxt(f, ts_record, fmt='%f')
+        # f.close()
+            #################### record data #####################
         Info, EulerAngle_vrep, EulerAngle, EEF_pos = FK.ForwardKinemetics(self.joint , DH_table)
 
         # if render:
@@ -183,48 +208,60 @@ class robot_env(object):
         c_out = self.check_c_space_bound(EEF_pos)       #------卡式空間限制
         if c_out:
             reward=reward-1
+            # print('c_out')
 
 
-        cubid_pos = self.my_robot.get_cuboid_pos()
-        diffence = [(cubid_pos[0] - EEF_pos[0]), (cubid_pos[1] - EEF_pos[1]), (cubid_pos[2] - EEF_pos[2])]
+        diffence = [(self.cubid_pos[0] - EEF_pos[0]), (self.cubid_pos[1] - EEF_pos[1]), (self.cubid_pos[2] - EEF_pos[2])]
         distance = np.sqrt(pow(diffence[0], 2) + pow(diffence[1], 2) + pow(diffence[2], 2))
 
+        # cubid_pos = self.my_robot.get_cuboid_pos()
+        # xy_diffence = [(self.cubid_pos[0] - EEF_pos[0]), (self.cubid_pos[1] - EEF_pos[1])]
+        # xy_distance = np.sqrt(pow(xy_diffence[0], 2) + pow(xy_diffence[1], 2))
+        # z_distance = abs((self.cubid_pos[2] - EEF_pos[2]))
 
 
-        if self.distance<distance:
-            reward = -distance-0.1
+      ######-----------reward function-----------######
+
+        if self.distance < distance:
+            reward = reward-distance-0.1
         else:
-            reward = -distance+0.1
-
-        self.distance = distance
+            reward = reward-distance+0.1
 
 
+        # self.xy_distance = xy_distance
+        # self.z_distance = z_distance
+        self.distance=distance
 
-        if (cubid_pos[0]-0.05 < EEF_pos[0] <cubid_pos[0]+0.05 and cubid_pos[1]-0.05 < EEF_pos[1] <cubid_pos[1]+0.05 and cubid_pos[2]< EEF_pos[2] <cubid_pos[2]+0.005):
+        if (self.cubid_pos[0]-0.05 < EEF_pos[0] and EEF_pos[0]<self.cubid_pos[0]+0.05 and self.cubid_pos[1]-0.05 < EEF_pos[1] and EEF_pos[1]<self.cubid_pos[1]+0.05 and self.cubid_pos[2]< EEF_pos[2] and EEF_pos[2]<self.cubid_pos[2]+0.04+0.004):
+            print('move')
+            self.my_robot.move_all_joint(self.joint)
+            time.sleep(0.2)
             suction_value = self.my_robot.enable_suction(True)
-
+            reward = reward + 0.5
+            print('suction enable',suction_value)
             if suction_value == 1:
-                print('suction enable')
-                joint_cmd[0] = self.joint[0]
-                joint_cmd[1] = -50*self.degtorad
-                joint_cmd[2] = self.joint[2]
-                joint_cmd[3] = self.joint[3]
-                joint_cmd[4] = self.joint[4]
-                joint_cmd[5] = self.joint[5]
-                joint_pos_out, vs_out = controller(joint_cmd, self.joint, self.vs)
+                self.joint_cmd[0] = self.joint[0]
+                self.joint_cmd[1] = -40*self.degtorad
+                self.joint_cmd[2] = self.joint[2]
+                self.joint_cmd[3] = self.joint[3]
+                self.joint_cmd[4] = self.joint[4]
+                self.joint_cmd[5] = self.joint[5]
+                self.joint = self.joint_cmd
+                joint_pos_out, vs_out,ts = controller(self.joint_cmd, self.joint, self.vs)
                 self.joint = joint_pos_out
                 self.vs = vs_out
                 # if render:
                 #     # joint = self.joint.reshape(1, 6)
-                #     self.my_robot.move_all_joint(self.joint)
+                print("move")
+                self.my_robot.move_all_joint(self.joint)
 
 
             time.sleep(0.5)
             cubid_pos_now = self.my_robot.get_cuboid_pos()
 
 
-            if cubid_pos_now[2] - cubid_pos[2] > 0.1:
-                reward += 10
+            if cubid_pos_now[2] - self.cubid_pos[2] > 0.1:
+                reward += 5
                 done = True
             else:
                 reward -= 1
@@ -232,6 +269,8 @@ class robot_env(object):
         suction_value = self.my_robot.enable_suction(False)
 
         s_ = self.get_state()
+        # s_ = np.hstack((self.joint, self.cubid_pos, self.distance ))
+
 
         return s_, reward, done
 
@@ -252,7 +291,7 @@ class robot_env(object):
         c_out=False
         if EEF[0]<0.25 or EEF[0]>0.6:
             c_out=True
-        if EEF[1]<-0.324 or EEF[1]>0.374:
+        if EEF[1]<-0.324 or EEF[1]>0.374 or EEF[2] < 0:
             c_out=True
         return c_out
     def sample_action(self):

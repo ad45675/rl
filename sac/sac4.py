@@ -32,8 +32,8 @@ class SAC_agent(object):
         self.actor = ActorNetwork(A_LR, input_dims, n_actions, max_action,hidden_sizes, name='actor')
         self.critic_1 = CriticNetwork(C_LR, input_dims, n_actions,hidden_sizes, name='critic_1')
         self.critic_2 = CriticNetwork(C_LR, input_dims, n_actions,hidden_sizes, name='critic_2')
-        self.critic_1_target = CriticNetwork(C_LR, input_dims, n_actions, hidden_sizes, name='critic_1')
-        self.critic_2_target = CriticNetwork(C_LR, input_dims, n_actions, hidden_sizes, name='critic_2')
+        self.critic_1_target = CriticNetwork(C_LR, input_dims, n_actions, hidden_sizes, name='critic_1_target')
+        self.critic_2_target = CriticNetwork(C_LR, input_dims, n_actions, hidden_sizes, name='critic_2_target')
         self.scale = reward_scale
         self.update_network_parameters(tau=1)
 
@@ -86,6 +86,8 @@ class SAC_agent(object):
         self.actor.save_checkpoint(checkpoint_path)
         # self.value.save_checkpoint(checkpoint_path)
         # self.target_value.save_checkpoint(checkpoint_path)
+        self.critic_1_target.save_checkpoint(checkpoint_path)
+        self.critic_2_target.save_checkpoint(checkpoint_path)
         self.critic_1.save_checkpoint(checkpoint_path)
         self.critic_2.save_checkpoint(checkpoint_path)
 
@@ -94,8 +96,10 @@ class SAC_agent(object):
         print('.... loading models ....')
 
         self.actor.load_checkpoint(path)
-        self.value.load_checkpoint(path)
-        self.target_value.load_checkpoint(path)
+        # self.value.load_checkpoint(path)
+        # self.target_value.load_checkpoint(path)
+        self.critic_1_target.load_checkpoint(path)
+        self.critic_2_target.load_checkpoint(path)
         self.critic_1.load_checkpoint(path)
         self.critic_2.load_checkpoint(path)
 
