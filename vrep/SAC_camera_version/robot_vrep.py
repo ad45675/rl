@@ -9,7 +9,11 @@ import numpy as np
 import math
 import sim as vrep
 import time
-
+import config
+from Rot2RPY import Rot2RPY,euler2mat,Rot2RPY_version2
+import cv2 as cv
+import PIL.Image as Image
+import os
 # 配置關節資訊
 jointNum = 6
 baseName = 'my_robot'
@@ -42,6 +46,16 @@ class my_robot(object):
         self.object_pos = None
         self.Cuboid_pos = []
         self.action_bound = [1, -1]
+#------------------------camera info------------------------#
+        self.radtodeg = 180 / math.pi  # 弧度轉角度
+        self.degtorad = math.pi / 180  # 角度轉弧度
+        self.width = config.width
+        self.height = config.height
+        self.theta = config.theta
+        self.dis_far = config.dis_far
+        self.dis_near = config.dis_near
+        self.depth_scale = config.depth_scale
+        self.save_image_path = config.SAVE_IMAGE_PATH
 
     def connection(self):
 
@@ -180,7 +194,7 @@ class my_robot(object):
     def read_object_id(self):
 
         # 讀robot base id
-        # _,self.my_robot=vrep.simxGetObjectHandle(self.clientID, my_robot, BLOCKING)
+        _,self.my_robot=vrep.simxGetObjectHandle(self.clientID, my_robot, BLOCKING)
 
         # 拿取joint id
         for i in range(jointNum):
@@ -201,6 +215,12 @@ class my_robot(object):
 
         # 讀plane id
         res, self.plane = vrep.simxGetObjectHandle(self.clientID, 'Plane', BLOCKING)
+
+        # 讀camera id
+        _, self.camera_handle = vrep.simxGetObjectHandle(self.clientID, 'kinect', BLOCKING)
+        _, self.kinectRGB_handle = vrep.simxGetObjectHandle(self.clientID, 'kinect_rgb', BLOCKING)
+        _, self.kinectDepth_handle = vrep.simxGetObjectHandle(self.clientID, 'kinect_depth', BLOCKING)
+
 
         print('handle available!!!')
 
@@ -270,6 +290,144 @@ class my_robot(object):
         self.stop_sim()
         self.start_sim()
 
+
+
+
+#----------------------camera info-----------------------#
+
+    def set_up_camera(self,camera_handle):
+        # ----------------------------get camera pose
+        _, cam_position = vrep.simxGetObjectPosition(self.clientID, camera_handle, -1, vrep.simx_opmode_blocking)
+        _, cam_orientation = vrep.simxGetObjectOrientation(self.clientID, camera_handle, -1, vrep.simx_opmode_blocking)
+
+        cam_trans = np.eye(4, 4)
+        cam_trans[0:3, 3] = np.asarray(cam_position)
+        cam_orientation = [-cam_orientation[0], -cam_orientation[1], -cam_orientation[2]]
+        cam_rotm = np.eye(4, 4)
+
+        cam_rotm[0:3, 0:3] = euler2mat(cam_orientation[0], cam_orientation[1], cam_orientation[2])  # 逆矩陣
+        cam_pose = np.dot(cam_trans, cam_rotm)
+        return cam_position, cam_rotm, cam_pose
+    def get_depth_camera_pose(self):
+        return self.set_up_camera(self.kinectDepth_handle)
+
+    def intri_camera(self):
+        # ----------------------------get camera 內參
+        fx = -self.width / 2.0 / (math.tan(self.theta * self.degtorad / 2.0))
+        fy = -fx
+        u0 = self.width / 2
+        v0 = self.height / 2
+        intri = np.array([
+            [fx, 0, u0],
+            [0, fy, v0],
+            [0, 0, 1]])
+
+        return intri
+    def get_camera_data(self):
+        # 從VREP得到圖片資訊
+        # ---------------------------彩色圖片
+        res, resolution, raw_image = vrep.simxGetVisionSensorImage(self.clientID, self.kinectRGB_handle, 0,BLOCKING)
+        color_img = np.array(raw_image, dtype=np.uint8)
+        color_img.shape = (resolution[1], resolution[0], 3)
+        color_img = color_img.astype(np.float) / 255
+        color_img[color_img < 0] += 1  # 這甚麼??
+        color_img *= 255
+        color_img = np.flipud(color_img)  # 翻轉列表
+
+        color_img = color_img.astype(np.uint8)  # np.uint8[0,255]  如果是float 就是灰階圖片
+
+        # ---------------------------深度圖片
+        res, resolution, depth_buffer = vrep.simxGetVisionSensorDepthBuffer(self.clientID, self.kinectDepth_handle,BLOCKING)
+        depth_img = np.array(depth_buffer)
+        depth_img.shape = (resolution[1], resolution[0])
+        depth_img = np.flipud(depth_img)  # 翻轉列表
+        depth_img[depth_img < 0] = 0
+        depth_img[depth_img > 1] = 0.9999
+
+        depth_img = (self.dis_far * self.dis_near / (self.dis_far - (self.dis_far - self.dis_near))) * depth_img  # 0.01124954
+
+        depth_img_for_show = (depth_img - np.min(depth_img)) * 255 / (np.max(depth_img) - np.min(depth_img))  # 正規化 0~255
+
+        depth_img_for_show = depth_img_for_show.astype(np.uint8)
+
+        depth_img_for_show = cv.cvtColor(depth_img_for_show, cv.COLOR_GRAY2BGR)
+
+        return color_img, depth_img,depth_img_for_show
+
+    def save_image_and_show(self,cur_color,cur_depth,depth_img_for_show,img_idx):
+        ## 存影像圖片  將原本array轉成image
+        img = Image.fromarray(cur_color.astype(np.uint8), mode='RGB')  # .convert('RGB')  #array到image的實現轉換
+        img_path = os.path.join(self.SAVE_PATH_COLOR, str(img_idx) + '_rgb.png')
+        img.save(img_path)
+        ##   存深度圖
+        depth_img = Image.fromarray(cur_depth.astype(np.uint8), mode='I')  # array到image的實現轉換
+        depth_path = os.path.join(self.SAVE_PATH_COLOR, str(img_idx) + '_depth.png')
+        depth_img.save(depth_path)
+        ##   存深度圖(3channel)
+        depth_img_for_show = Image.fromarray(cur_depth.astype(np.uint8), mode='RGB')  # array到image的實現轉換
+        depth_show_path = os.path.join(self.SAVE_PATH_COLOR, str(img_idx) + '_depth_for_show.png')
+        depth_img_for_show.save(depth_show_path)
+
+        bg_depth=cv.imread(depth_path,-1)/10000
+        depth_img_for_show = cv.imread(depth_img_for_show)
+        bg_color=cv.imread(img_path)/255
+        cv.imshow('color Image',bg_color)
+        cv.imshow('depth 3channel Image', depth_img_for_show )
+        cv.imshow('depth Image', bg_depth)
+        # 按下任意鍵則關閉所有視窗
+        cv.waitKey(0)
+        cv.destroyAllWindows()
+
+    def get_depth_from_RGB(self,num=5, resy=config.height, pixel=np.array([255, 177])):
+        depth_path = os.path.join(self.SAVE_PATH_COLOR, str(num) + '_depth.png')
+        bg_depth = cv.imread(depth_path, 0)
+        bg_depth [bg_depth  < 0] = 0
+        bg_depth [bg_depth > 1] = 0.9999
+
+
+        # # -----翻轉照片
+        # depth_img_flip = np.zeros([424, 512])
+        # for i in range(424):
+        #     for j in range(512):
+        #         depth_img_flip[i][j] = depth_img[423 - i][j]
+        # # -----翻轉照片
+
+        pixel_depth =bg_depth [pixel[1]][pixel[0]]
+        # print('de',pixel_depth)
+        pixel_depth = self.dis_near + (self.dis_far-self.dis_near)*pixel_depth
+
+        # pixel_depth_img_flip = depth_img_flip[resy - pixel[1]][pixel[0]]
+        # pixel_depth_img_flip = dis_near + (dis_far-dis_near)*pixel_depth_img_flip
+
+        return pixel_depth
+
+    def xyz_2_uv(self,x, y, z):
+        # ------------xyz to pixel
+        u = x * (self.width / 2) * (-1 / math.tan(self.theta * self.deg2rad / 2.0)) * (1 / z) + self.width/ 2
+        v = y * (self.width / 2) * (1 / math.tan(self.theta * self.deg2rad / 2.0)) * (1 / z) + self.height / 2
+
+        # call funtion EX: u,v=xyz_2_uv(o_in_cam_vrep[0],o_in_cam_vrep[1],o_in_cam_vrep[2],512,424,70)
+        # cam_intri = intri_camera()
+        # xyz = np.array([x,y,z])
+        # xyz = np.reshape(xyz,(3,1))
+        # uv = (1 / z) * np.dot(cam_intri , xyz)  #------>用內參matrix算
+        # u,v = uv[0],uv[1]
+        v = self.height - v
+        return u, v
+
+    def uv_2_xyz(self,z, u, v):
+        # ------------pixel to xyz
+        v = self.height - v
+
+        x = z * (math.tan(self.theta * self.deg2rad / 2)) * 2 * ((self.width / 2 - u) / self.width)
+        y = z * (math.tan(self.theta * self.deg2rad / 2)) * 2 * ((v - self.height / 2) / self.width)
+        # call funtion EX: x,y=uv_2_xyz(o_in_cam_vrep[2],256.5,261.999,512,424,70)
+
+        # cam_intri = intri_camera()
+        # intri_inver = np.linalg.inv(cam_intri)
+        # uv = np.array([u,v,1])
+        # xyz = np.dot(intri_inver, uv) * z
+        return x, y
 
 if __name__ == '__main__':
     joint_pos =[]

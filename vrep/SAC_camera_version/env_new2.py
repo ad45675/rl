@@ -67,12 +67,6 @@ def save_txt(data, fmt='%f'):
 class robot_env(object):
     # joint_bound
     degtorad = math.pi / 180
-    joint1_bound = [-50 * degtorad, 50 * degtorad]#(-0.87~0.87)
-    joint2_bound = [-80 * degtorad, 70 * degtorad]#(-1.430~1.22)
-    joint3_bound = [-60 * degtorad, 60 * degtorad]#(-1.22~1.04)
-    joint4_bound = [0 * degtorad, 0 * degtorad]
-    joint5_bound = [-90 * degtorad, 3 * degtorad]#(-1.57~0)
-    joint6_bound = [-360 * degtorad, 360 * degtorad]
     state_dim = config.state_dim
     action_dim = config.action_dim
 

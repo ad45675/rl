@@ -67,12 +67,6 @@ def save_txt(data, fmt='%f'):
 class robot_env(object):
     # joint_bound
     degtorad = math.pi / 180
-    joint1_bound = [-50 * degtorad, 50 * degtorad]#(-0.87~0.87)
-    joint2_bound = [-80 * degtorad, 70 * degtorad]#(-1.430~1.22)
-    joint3_bound = [-60 * degtorad, 60 * degtorad]#(-1.22~1.04)
-    joint4_bound = [0 * degtorad, 0 * degtorad]
-    joint5_bound = [-90 * degtorad, 3 * degtorad]#(-1.57~0)
-    joint6_bound = [-360 * degtorad, 360 * degtorad]
     state_dim = config.state_dim
     action_dim = config.action_dim
 
@@ -94,13 +88,13 @@ class robot_env(object):
         # robot to initial pos and random the target
 
         self.joint = [0, 0, 0, 0, 0, 0]
-        # if render:
         self.my_robot.move_all_joint(self.joint)
         print('reset')
 
         # 目標物隨機擺放
 
         self.my_robot.random_object()
+        self.cubid_pos = self.my_robot.get_cuboid_pos()  # dim=3
         return self.get_state()
 
     def get_state(self):
@@ -111,15 +105,6 @@ class robot_env(object):
         Info, EulerAngle_vrep, EulerAngle, EEF_pos = FK.ForwardKinemetics(self.joint, DH_table)
         EEF_pos = np.round(EEF_pos, 4)
 
-        # 從 vrep 得到末端點資訊
-        # if render:
-        #     vrep_EEF_pos = self.my_robot.get_EEF_pos()  # dim=3
-        #     vrep_EEF_pos = np.round(vrep_EEF_pos , 4)
-        #     # joint_pos = self.my_robot.get_joint_pos()  # dim=6
-
-
-        # 從 vrep 得到目標位置
-        self.cubid_pos = self.my_robot.get_cuboid_pos()  # dim=3
 
 
         # 末端點 與 目標物距離
@@ -143,16 +128,12 @@ class robot_env(object):
         outbound = False
         reward = 0
 
-        # if render:
-        #     joint_pos = self.my_robot.get_joint_pos()  # dim=6
-        #     self.joint = joint_pos
-
         time.sleep(0.2)
         self.joint_cmd[0] = self.joint[0] + action[0]
         self.joint_cmd[1] = self.joint[1] + action[1]
         self.joint_cmd[2] = self.joint[2] + action[2]
-        self.joint_cmd[3] = self.joint[3]
-        self.joint_cmd[4] = self.joint[4] + action[3]
+        self.joint_cmd[3] = self.joint[3] + action[3]
+        self.joint_cmd[4] = self.joint[4] + action[4]
         self.joint_cmd[5] = self.joint[5]
 
 
@@ -169,9 +150,6 @@ class robot_env(object):
                 self.vs = vs_out
 
            # self.my_robot.move_all_joint(self.joint)
-
-
-
             ##################### record data #####################
             # error_record = np.reshape(error, (1, 6))
             # # print(joint_out_record)
@@ -207,7 +185,7 @@ class robot_env(object):
 
         c_out = self.check_c_space_bound(EEF_pos)       #------卡式空間限制
         if c_out:
-            reward=reward-1
+            reward = reward-1
             # print('c_out')
 
 
@@ -230,18 +208,18 @@ class robot_env(object):
 
         # self.xy_distance = xy_distance
         # self.z_distance = z_distance
-        self.distance=distance
+        self.distance = distance
 
-        if (self.cubid_pos[0]-0.05 < EEF_pos[0] and EEF_pos[0]<self.cubid_pos[0]+0.05 and self.cubid_pos[1]-0.05 < EEF_pos[1] and EEF_pos[1]<self.cubid_pos[1]+0.05 and self.cubid_pos[2]< EEF_pos[2] and EEF_pos[2]<self.cubid_pos[2]+0.04+0.004):
+        if (self.distance < 0.06):
+            
             print('move')
             self.my_robot.move_all_joint(self.joint)
             time.sleep(0.2)
             suction_value = self.my_robot.enable_suction(True)
-            reward = reward + 0.5
             print('suction enable',suction_value)
             if suction_value == 1:
                 self.joint_cmd[0] = self.joint[0]
-                self.joint_cmd[1] = -40*self.degtorad
+                self.joint_cmd[1] = -30*self.degtorad
                 self.joint_cmd[2] = self.joint[2]
                 self.joint_cmd[3] = self.joint[3]
                 self.joint_cmd[4] = self.joint[4]
@@ -250,8 +228,6 @@ class robot_env(object):
                 joint_pos_out, vs_out,ts = controller(self.joint_cmd, self.joint, self.vs)
                 self.joint = joint_pos_out
                 self.vs = vs_out
-                # if render:
-                #     # joint = self.joint.reshape(1, 6)
                 print("move")
                 self.my_robot.move_all_joint(self.joint)
 
@@ -265,7 +241,7 @@ class robot_env(object):
                 done = True
             else:
                 reward -= 1
-                done = False
+                done = True
         suction_value = self.my_robot.enable_suction(False)
 
         s_ = self.get_state()

@@ -77,22 +77,17 @@ class my_robot(object):
         self.read_object_id()
 
         # 開始模擬
-        vrep.simxStartSimulation(self.clientID, ONESHOT)
+        # vrep.simxStartSimulation(self.clientID, ONESHOT)
 
         #while vrep.simxGetConnectionId(self.clientID) != -1:
         # 讓模擬先走一步
-        vrep.simxSynchronousTrigger(self.clientID)
+        # vrep.simxSynchronousTrigger(self.clientID)
         # 暫停溝通等等一次發送
-        vrep.simxPauseCommunication(self.clientID, True)
-
-        for i in range(jointNum):
-            vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[i], self.initial_joint[i], ONESHOT)
-
-        vrep.simxPauseCommunication(self.clientID, False)
+        self.move_all_joint(self.initial_joint)
 
         # self.random_object()
         #vrep.simxSynchronousTrigger(self.clientID)  # 进行下一步
-        vrep.simxGetPingTime(self.clientID)  # 使得该仿真步走完
+        # vrep.simxGetPingTime(self.clientID)  # 使得该仿真步走完
 
         self.suction_enable = False
 
@@ -207,8 +202,10 @@ class my_robot(object):
     def move_all_joint(self, joint_angle):
 
         vrep.simxPauseCommunication(self.clientID, True)
+        # for i in range(jointNum):
+        #     vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[i], joint_angle[i], ONESHOT)
         for i in range(jointNum):
-            vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[i], joint_angle[i], ONESHOT)
+            vrep.simxSetJointPosition(self.clientID, self.joint_handle[i], joint_angle[i], ONESHOT)
         vrep.simxPauseCommunication(self.clientID, False)
 
     def move_4_joint(self, joint_angle):

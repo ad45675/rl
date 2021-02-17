@@ -11,13 +11,13 @@ reparameterize_critic=False
 reparameterize_actor=True
 
 state_dim = 10
-action_dim = 4
-a_bound = [0.02,0.02,0.02,0.02]
+action_dim = 5
+a_bound = [0.02,0.02,0.02,0.02,0.02]
 
 PATH_EVAL = ['02041551', '9']  # for eval
 
-MAX_EPISODES = 500
-MAX_EP_STEPS = 800
+MAX_EPISODES = 1000
+MAX_EP_STEPS = 250
 
 A_LR = 0.001
 C_LR = 0.001

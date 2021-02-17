@@ -33,6 +33,26 @@ eval_iteration = 5  #存model
 initial_joint=[0,0,0,0,0,0]
 
 
+# ---------camera info
+
+#---影像長寬
+width = 512
+height = 424
+
+#---角度
+theta = 70
+theta_ratio = width / height
+
+#---深度資訊
+dis_far = 1
+dis_near = 0.01
+depth_scale = 1000
+
+#---存照片路徑
+SAVE_IMAGE_PATH = 'C:/Users/user/Desktop/rl/vrep/SAC_camera_version'
+
+
+
 #checkpoint_path = os.path.join('./model/' + path + '/net/' + str(int(i)))
 
 
