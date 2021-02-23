@@ -27,18 +27,30 @@ class CriticNetwork(nn.Module):
         super(CriticNetwork, self).__init__()
         self.input_dims = input_dims
         self.n_actions = n_actions
-        self.hidden_size = hidden_sizes
+        self.hidden_dim = hidden_sizes
         self.name = name
-        activation = nn.ReLU
 
-        self.q = mlp([self.input_dims + n_actions] + list(hidden_sizes)+[1], activation)
+        init_w = 3e-3
+
+        self.linear1 = nn.Linear(self.input_dims + n_actions, self.hidden_dim[0])
+        self.linear2 = nn.Linear(self.hidden_dim[0], self.hidden_dim[1])
+        self.q = nn.Linear(self.hidden_dim[1], 1)
+
+        self.q.weight.data.uniform_(-init_w, init_w)
+        self.q.bias.data.uniform_(-init_w, init_w)
+
 
         self.optimizer = optim.Adam(self.parameters(), lr=beta)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         self.to(self.device)
 
     def forward(self, state, action):
-        q = self.q(T.cat([state, action], dim=-1))
+
+        q = T.cat([state, action], dim=1)
+        q = F.relu(self.linear1(q))
+        q = F.relu(self.linear2(q))
+        q = self.q(q)
+
         # q = self.q(action_value) #shape torch.Size([32, 1])
         # q = (T.squeeze(q, -1)) #shape torch.Size([32])
         return T.squeeze(q, -1)
@@ -58,9 +70,16 @@ class ValueNetwork(nn.Module):
         self.input_dims = input_dims
         self.name = name
         self.hidden_sizes = hidden_sizes
-        activation = nn.ReLU
 
-        self.v = mlp([self.input_dims] + list(hidden_sizes) + [1], activation)
+        init_w = 3e-3
+
+        # self.v = mlp([self.input_dims] + list(hidden_sizes) + [1], activation)
+        self.linear1 = nn.Linear(self.input_dims, self.hidden_dim[0])
+        self.linear2 = nn.Linear(self.hidden_dim[0],self. hidden_dim[1])
+        self.v = nn.Linear(self.hidden_dim[1], 1)
+
+        self.v.weight.data.uniform_(-init_w, init_w)
+        self.v.bias.data.uniform_(-init_w, init_w)
 
         self.optimizer = optim.Adam(self.parameters(), lr=beta)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
@@ -68,7 +87,11 @@ class ValueNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state):
-        v = self.v(state)
+        # v = self.v(state)
+        v = F.relu(self.linear1(state))
+        v = F.relu(self.linear2(v))
+        v = self.v(v)
+
         return v
 
     def save_checkpoint(self, checkpoint_path):
@@ -86,13 +109,24 @@ class ActorNetwork(nn.Module):
         self.input_dims = input_dims
         self.n_actions = n_actions
         self.name = name
-        self.hidden_sizes = hidden_sizes
+        self.hidden_dim = hidden_sizes
         self.max_action = max_action
         self.reparam_noise = 1e-6
-        activation = nn.ReLU
-        self.net = mlp([self.input_dims] + list(self.hidden_sizes), activation, activation)
-        self.mu = nn.Linear(self.hidden_sizes[-1], self.n_actions)  # mean of the distribution for policy
-        self.log_std = nn.Linear(self.hidden_sizes[-1], self.n_actions)  # standard deviation
+        # activation = nn.ReLU
+        init_w = 3e-3
+        # self.net = mlp([self.input_dims] + list(self.hidden_sizes), activation, activation)
+
+        self.linear1 = nn.Linear(self.input_dims, self.hidden_dim[0])
+        self.linear2 = nn.Linear(self.hidden_dim[0], self.hidden_dim[1])
+
+
+        self.mu = nn.Linear(self.hidden_dim[1], self.n_actions)  # mean of the distribution for policy
+        self.mu.weight.data.uniform_(-init_w, init_w)
+        self.mu.bias.data.uniform_(-init_w, init_w)
+
+        self.log_std = nn.Linear(self.hidden_dim[1], self.n_actions)  # standard deviation
+        self.log_std .weight.data.uniform_(-init_w, init_w)
+        self.log_std .bias.data.uniform_(-init_w, init_w)
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
@@ -100,7 +134,9 @@ class ActorNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state):
-        net_out = self.net(state)
+        # net_out = self.net(state)
+        net_out = F.relu(self.linear1(state))
+        net_out = F.relu(self.linear2(net_out))
 
         mu = self.mu(net_out )  # mean of the distribution for policy
         log_std = self.log_std(net_out )  # standard deviation
@@ -115,22 +151,25 @@ class ActorNetwork(nn.Module):
         pi_distribution = T.distributions.Normal(mu, std)  # class torch.distributions.Normal(mean, std)
         if deterministic:
             pi_action = mu  # Only used for evaluating policy at test time.
-
         if reparameterize:
             pi_action = pi_distribution.rsample()
             # 而是先对标准正太分布N ( 0 , 1 )进行采样，然后输出：
             # mean+std ×採樣值
         else:
             pi_action = pi_distribution.sample()
-        # if deterministic:
-        #     pi_action = mu
+
+
             # 輸出 deterministic的動作
             # Only used for evaluating policy at test time.
         # Compute logprob from Gaussian, and then apply correction for Tanh squashing.
+
         log_probs = pi_distribution.log_prob(pi_action).sum(axis=-1)  # 正態分布(版2)
+
         log_probs -= (2 * (np.log(2) - pi_action - F.softplus(-2 * pi_action))).sum(axis=1)  # (版2)
-        # log_probs -= T.log(1-pi_action.pow(2)+self.reparam_noise)#(版1)
+        # log_probs -= T.log(T.tensor(self.max_action).to(self.device)*(1-pi_action.pow(2))+self.reparam_noise)#(版1)
         # log_probs = log_probs.sum(1, keepdim=True)#(版1)
+
+        mean = T.tanh(mu) * T.tensor(self.max_action).to(self.device)
         pi_action = T.tanh(pi_action)
         action = pi_action * T.tensor(self.max_action).to(self.device)
         return action , log_probs

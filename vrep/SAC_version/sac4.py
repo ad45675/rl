@@ -22,7 +22,7 @@ gamma = config.gamma
 MEMORY_CAPACITY = config.MEMORY_CAPACITY
 batch_size = config.batch_size
 reward_scale = config.reward_scale
-hidden_sizes=config.hidden_sizes
+hidden_sizes=config.hidden_dim
 
 class SAC_agent(object):
     def __init__(self, input_dims, n_actions, max_action):

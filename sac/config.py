@@ -17,16 +17,16 @@ if sac:
     reward_scale = 0.001
 
     tau = 0.01  # soft replacement
-    MEMORY_CAPACITY = 10000
+    MEMORY_CAPACITY = 100000
 
     # layer4_size = 64
 
-    batch_size = 32
+    batch_size = 128
 
     Tolerance=5
 
-    MAX_EPISODES = 500
-    MAX_EP_STEPS = 200
+    MAX_EPISODES = 1000
+    MAX_EP_STEPS = 500
     eval_iteration = 10
     cost_iteration = 50
 

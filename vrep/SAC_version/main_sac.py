@@ -33,12 +33,12 @@ agent = SAC_agent(s_dim, a_dim, a_bound)
 
 if ON_TRAIN:
     Mode = 'Train'
+    record = False
 else:
     Mode = 'Eval'
+    record = True
 
 def train():
-
-
     # uncomment this line and do a mkdir tmp && mkdir video if you want to
     # record video of the agent playing the game.
     #env = wrappers.Monitor(env, 'tmp/video', video_callable=lambda episode_id: True, force=True)
@@ -50,9 +50,9 @@ def train():
     if load_checkpoint:
         agent.load_models(PATH_EVAL)
     env.initial()
-    # agent.load_models(PATH_EVAL)
+    agent.load_models(PATH_EVAL)
     #------record memory------#
-    step_set, reward_set, avg_reward_set, state_set ,action_set,joint1_set,joint2_set,joint3_set,joint5_set,distance_set= [], [], [], [], [], [], [], [], [], []
+    step_set, reward_set, avg_reward_set, state_set ,action_set,distance_set= [], [], [], [], [], [], [], [], [], []
     for i in range(MAX_EPISODES):
         s = env.reset()
         done = False
@@ -63,13 +63,13 @@ def train():
 
             action_set.append(a)
 
-            s_, r, done= env.step(a)
+            s_, r, done= env.step(a,record)
 
             agent.remember(s, a ,r, s_, done)
 
             ep_r += r
             if ep_r<-250:
-                done=True
+                done = True
 
             if not load_checkpoint:
                 agent.learn()
@@ -86,28 +86,24 @@ def train():
                 # avg_score_set.append(avg_score )
                 # best_score_set.append(best_score)
                 break
-
         if i % eval_iteration == 0:
             agent.save_models(PATH, i / eval_iteration)
 
-    joint1_set = [x[0] for x in action_set]
-    joint2_set = [x[1] for x in action_set]
-    joint3_set = [x[2] for x in action_set]
-    distance_set = [x[6] for x in state_set]
+
 
     # ----- record data ----- #
     folder_data = './model/' + PATH + '/train/data/'
-    file_name = ['step.txt', 'reward.txt', 'avgR.txt', 'joint1.txt','joint2.txt','joint3.txt','distance.txt','state_set.txt']
-    data_set = ['step_set', 'reward_set','avg_reward_set','joint1_set','joint2_set','joint3_set','distance_set','state_set']
+    file_name = ['step.txt', 'reward.txt', 'avgR.txt','state_set.txt']
+    data_set = ['step_set', 'reward_set','avg_reward_set','state_set']
     for i in range(len(file_name)):
         save_txt(path=folder_data, name=file_name[i], data=eval(data_set[i]))
 
 
     # ----- plot fig -----
     folder_fig = './model/' + PATH + '/train/fig/'
-    xlabel = ['Episode', 'Episode', 'Episode', 'Episode', 'Episode','Episode','Episode','Episode']
-    ylabel = ['step', 'r', 'avgR','joint1','joint2','joint3','distance','state']
-    title = ['step', 'reward', 'avgR','joint1','joint2','joint3','distance','state']
+    xlabel = ['Episode', 'Episode', 'Episode', 'Episode']
+    ylabel = ['step', 'r', 'avgR','state']
+    title = ['step', 'reward', 'avgR','state']
     for i in range(len(file_name)):
         plot_txt(path=folder_data, name=file_name[i], xlabel=xlabel[i], ylabel=ylabel[i], title=title[i],
                  save_location=folder_fig)
@@ -190,17 +186,13 @@ def save_txt(path, name, data, fmt='%f'):
 
 def save_parameter():
     with open('./model/' + PATH + '/train/parameter.txt', 'w') as f:
-
         f.writelines("Method: {}\n".format('sac'))
         f.writelines("state: {}\naction: {}\n a_bound:{}\n".format(config.state_dim,config.action_dim,config.a_bound))
         f.writelines("Max Episodes: {}\nMax Episodes steps: {}\n".format(MAX_EPISODES, MAX_EP_STEPS))
         f.writelines("LR_A: {}\nLR_C: {}\nGAMMA: {}\n".format(config.A_LR, config.C_LR, config.gamma))
-        f.writelines("reward_scale: {}\n".format(config.reward_scale))
-        # f.writelines("A_UPDATE_STEPS: {}\nC_UPDATE_STEPS: {}\n".format(config.A_UPDATE_STEPS,config.C_UPDATE_STEPS))
-        f.writelines("BATCH_SIZE: {}\n".format(config.batch_size))
-        # f.writelines("layer1_size: {}\nlayer2_size: {}\n".format(config.layer1_size, config.layer2_size))
-        # f.writelines("layer_critic: {}\nneurons_critic: {}\n".format(config.layer_critic, config.neurons_critic))
-        # f.writelines("Tolerance: {}\n".format(config.Tolerance))
+        f.writelines("reward_scale: {}\ntau: {}\nmemory_capacity: {}\n".format(config.reward_scale,config.tau,config.MEMORY_CAPACITY))
+        f.writelines("BATCH_SIZE: {}\nhidden_dim: {}\n".format(config.batch_size,config.hidden_dim))
+
 
 if __name__ == "__main__":
 

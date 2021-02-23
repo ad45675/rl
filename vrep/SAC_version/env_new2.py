@@ -69,7 +69,7 @@ class robot_env(object):
     degtorad = math.pi / 180
     state_dim = config.state_dim
     action_dim = config.action_dim
-
+    SamplingTime = 0.01
     def __init__(self):
         self.radtodeg = 180 / math.pi  # 弧度轉角度
         self.degtorad = math.pi / 180  # 角度轉弧度
@@ -87,168 +87,115 @@ class robot_env(object):
         # return state containing joint ,EFF ,target ,dis
         # robot to initial pos and random the target
 
-        self.joint = [0, 0, 0, 0, 0, 0]
+        self.joint = [0, 0, 0, 0, -1.57, 0]
         self.my_robot.move_all_joint(self.joint)
         print('reset')
 
         # 目標物隨機擺放
-
         self.my_robot.random_object()
-        self.cubid_pos = self.my_robot.get_cuboid_pos()  # dim=3
+        self.cubid_pos, self.cuboid_x_range , self.cuboid_y_range  = self.my_robot.get_cuboid_pos()  # dim=3
+
+
         return self.get_state()
 
     def get_state(self):
-        ## state 是 6 個joint 和末端點與物體距離
 
 
-        #  順向運動學得到末端點資訊
+        # 順向運動學得到末端點資訊
         Info, EulerAngle_vrep, EulerAngle, EEF_pos = FK.ForwardKinemetics(self.joint, DH_table)
-        EEF_pos = np.round(EEF_pos, 4)
+        self.EEF_pos = np.round(EEF_pos, 4)
 
+        distance = np.linalg.norm(self.cubid_pos - self.EEF_pos)
+        # gripper state
+        object_rel_pos = self.cubid_pos - self.EEF_pos
 
-
-        # 末端點 與 目標物距離
-        diffence = [(self.cubid_pos[0] - EEF_pos[0]), (self.cubid_pos[1] - EEF_pos[1]), (self.cubid_pos[2] - EEF_pos[2])]
-        self.distance = np.sqrt(pow(diffence[0], 2) + pow(diffence[1], 2) + pow(diffence[2], 2))
-
-        # xy_diffence = [(self.cubid_pos[0] - EEF_pos[0]), (self.cubid_pos[1] - EEF_pos[1])]
-        # self.xy_distance = np.sqrt(pow(xy_diffence[0], 2) + pow(xy_diffence[1], 2))
-        # self.z_distance = abs((self.cubid_pos[2] - EEF_pos[2]))
-
-        s = np.hstack((self.joint, self.cubid_pos, self.distance ))
+        s = np.concatenate([self.cubid_pos,self.EEF_pos,object_rel_pos])
 
         return s
 
 
-    def step(self, action):
-        #action 是4個joint的位移
+    def step(self, action, record):
+        #action 是末端點 xyz
         joint_pos_out = np.zeros((6,),np.float)
+        joint_cmd = np.zeros((6,), np.float)
+        target_height= np.zeros((3,), np.float)
+
 
         done = False
         outbound = False
         reward = 0
-
-        time.sleep(0.2)
-        self.joint_cmd[0] = self.joint[0] + action[0]
-        self.joint_cmd[1] = self.joint[1] + action[1]
-        self.joint_cmd[2] = self.joint[2] + action[2]
-        self.joint_cmd[3] = self.joint[3] + action[3]
-        self.joint_cmd[4] = self.joint[4] + action[4]
-        self.joint_cmd[5] = self.joint[5]
+        success = 0
+        coutbound = 0
+        cuboid_out = 0
 
 
+        eef_x = action[0] + self.EEF_pos[0]
+        eef_y = action[1] + self.EEF_pos[1]
+        eef_z = action[2] + self.EEF_pos[2]
 
-        outbound = self.check_bound(self.joint_cmd,outbound) #------joint space bound
+        EEF = np.array([eef_x,eef_y,eef_z])
 
-
-        if not outbound:
-            # self.joint = self.joint_cmd
-
-            while (abs(math.pow(sum((joint_pos_out-self.joint_cmd)*(joint_pos_out-self.joint_cmd)),0.5))>0.005):
-                joint_pos_out, vs_out,ts = controller(self.joint_cmd, self.joint, self.vs)
-                self.joint = joint_pos_out
-                self.vs = vs_out
-
-           # self.my_robot.move_all_joint(self.joint)
-            ##################### record data #####################
-            # error_record = np.reshape(error, (1, 6))
-            # # print(joint_out_record)
-            # path = './Trajectory/'
-            # name = 'error_record.txt'
-            # f = open(path + name, mode='a')
-            # np.savetxt(f, error_record, fmt='%f')
-            # f.close()
-            ##################### record data #####################
-        else:
-            while (abs(math.pow(sum((joint_pos_out - self.joint_cmd) * (joint_pos_out - self.joint_cmd)), 0.5)) > 0.005):
-                joint_pos_out, vs_out,ts = controller(self.joint, self.joint, self.vs)
-                self.joint = joint_pos_out
-                self.vs = vs_out
-            self.my_robot.move_all_joint(self.joint)
-
-            reward-=1
-
-
+        if (record):
         #################### record data #####################
-        # ts_record = np.reshape(ts, (1, 6))
-        # # print(joint_out_record)
-        # path = './Trajectory/'
-        # name = 'ts_record.txt'
-        # f = open(path + name, mode='a')
-        # np.savetxt(f, ts_record, fmt='%f')
-        # f.close()
-            #################### record data #####################
-        Info, EulerAngle_vrep, EulerAngle, EEF_pos = FK.ForwardKinemetics(self.joint , DH_table)
+            EEF_record = np.reshape(EEF, (1, 3))
+            # print(joint_out_record)
+            path = './Trajectory/'
+            name = 'EEF_record.txt'
+            f = open(path + name, mode='a')
+            np.savetxt(f, error_record, fmt='%f')
+            f.close()
+        #################### record data #####################
 
-        # if render:
-        #     vrep_EEF_pos = self.my_robot.get_EEF_pos()  # dim=3
+        if(self.check_c_space_bound(EEF)):
+            coutbound = coutbound + 1
+        finalpos = [0,0,180]
 
-        c_out = self.check_c_space_bound(EEF_pos)       #------卡式空間限制
-        if c_out:
-            reward = reward-1
-            # print('c_out')
+        [tip_Jangle, flag] = IK.InverseKinematics(finalpos, EEF, DH_table)
+        joint = FindOptSol(tip_Jangle, self.joint)
+        self.my_robot.move_all_joint(joint)
+        self.joint = joint
 
-
-        diffence = [(self.cubid_pos[0] - EEF_pos[0]), (self.cubid_pos[1] - EEF_pos[1]), (self.cubid_pos[2] - EEF_pos[2])]
-        distance = np.sqrt(pow(diffence[0], 2) + pow(diffence[1], 2) + pow(diffence[2], 2))
-
-        # cubid_pos = self.my_robot.get_cuboid_pos()
-        # xy_diffence = [(self.cubid_pos[0] - EEF_pos[0]), (self.cubid_pos[1] - EEF_pos[1])]
-        # xy_distance = np.sqrt(pow(xy_diffence[0], 2) + pow(xy_diffence[1], 2))
-        # z_distance = abs((self.cubid_pos[2] - EEF_pos[2]))
+        distance = np.linalg.norm(self.cubid_pos - EEF)
 
 
-      ######-----------reward function-----------######
-
-        if self.distance < distance:
-            reward = reward-distance-0.1
-        else:
-            reward = reward-distance+0.1
-
-
-        # self.xy_distance = xy_distance
-        # self.z_distance = z_distance
-        self.distance = distance
-
-        if (self.distance < 0.06):
-            
-            print('move')
-            self.my_robot.move_all_joint(self.joint)
-            time.sleep(0.2)
+        if (distance < 0.002) or (abs(EEF[2] - self.cubid_pos[2]) < 0.005) :
             suction_value = self.my_robot.enable_suction(True)
-            print('suction enable',suction_value)
-            if suction_value == 1:
-                self.joint_cmd[0] = self.joint[0]
-                self.joint_cmd[1] = -30*self.degtorad
-                self.joint_cmd[2] = self.joint[2]
-                self.joint_cmd[3] = self.joint[3]
-                self.joint_cmd[4] = self.joint[4]
-                self.joint_cmd[5] = self.joint[5]
-                self.joint = self.joint_cmd
-                joint_pos_out, vs_out,ts = controller(self.joint_cmd, self.joint, self.vs)
-                self.joint = joint_pos_out
-                self.vs = vs_out
-                print("move")
-                self.my_robot.move_all_joint(self.joint)
+            height = 0.3  # (m)要抬高幾公分
+            target_height = np.array([0.4250, 0.025, height])
+            [tip_Jangle, flag] = IK.InverseKinematics(finalpos, target_height, DH_table)
+            joint = FindOptSol(tip_Jangle, self.joint)
+            self.my_robot.move_all_joint(joint)
+            self.joint = joint
 
+        cuboid_pos_now, self.cuboid_x_range , self.cuboid_y_range  = self.my_robot.get_cuboid_pos()  # dim=3
 
-            time.sleep(0.5)
-            cubid_pos_now = self.my_robot.get_cuboid_pos()
-
-
-            if cubid_pos_now[2] - self.cubid_pos[2] > 0.1:
-                reward += 5
-                done = True
-            else:
-                reward -= 1
-                done = True
+        if (abs(cuboid_pos_now[2] - self.cubid_pos[2])>0.02):
+           success = 1
+        else:
+           success = 0
+        time.sleep(0.5)  #需要
         suction_value = self.my_robot.enable_suction(False)
+        if (self.check_c_space_bound(cuboid_pos_now)):
+            cuboid_out = cuboid_out + 1
+
+        self.cubid_pos = cuboid_pos_now
+        reward = -distance -0.2*coutbound -0.5*cuboid_out + success
+
+        if(cuboid_out):
+            done = True
+            print('cuboid_out done')
+
+        if (success):
+            done = True
+            print('lift done')
 
         s_ = self.get_state()
-        # s_ = np.hstack((self.joint, self.cubid_pos, self.distance ))
-
 
         return s_, reward, done
+
+
+
+
 
     def check_bound(self,joint_pos,outbound):
         pos_lim=np.array([[-110*degtorad*0.9,110*degtorad*0.9],
@@ -282,8 +229,6 @@ class robot_env(object):
             r2=0
         elif(d_t2>=0.7):
             r2=-2
-
-
         r3=-math.exp(1.2+d_t2)
 
         if(d_t2<d_t1):
@@ -309,3 +254,14 @@ if __name__ == '__main__':
     # env.step(env.sample_action())
     print(action *env.radtodeg)
     time.sleep(10)
+
+# self.my_robot.move_all_joint(self.joint)
+##################### record data #####################
+# error_record = np.reshape(error, (1, 6))
+# # print(joint_out_record)
+# path = './Trajectory/'
+# name = 'error_record.txt'
+# f = open(path + name, mode='a')
+# np.savetxt(f, error_record, fmt='%f')
+# f.close()
+##################### record data #####################

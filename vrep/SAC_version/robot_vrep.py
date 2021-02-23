@@ -77,22 +77,22 @@ class my_robot(object):
         self.read_object_id()
 
         # 開始模擬
-        # vrep.simxStartSimulation(self.clientID, ONESHOT)
+        vrep.simxStartSimulation(self.clientID, ONESHOT)
 
-        #while vrep.simxGetConnectionId(self.clientID) != -1:
+        # while vrep.simxGetConnectionId(self.clientID) != -1:
         # 讓模擬先走一步
-        # vrep.simxSynchronousTrigger(self.clientID)
+        vrep.simxSynchronousTrigger(self.clientID)
         # 暫停溝通等等一次發送
         self.move_all_joint(self.initial_joint)
 
         # self.random_object()
         #vrep.simxSynchronousTrigger(self.clientID)  # 进行下一步
-        # vrep.simxGetPingTime(self.clientID)  # 使得该仿真步走完
+        vrep.simxGetPingTime(self.clientID)  # 使得该仿真步走完
 
         self.suction_enable = False
 
     def random_object(self):
-        # 得到工作空間範圍(plame大小)
+        # 得到工作空間範圍(plane大小)
 
         err, x_max = vrep.simxGetObjectFloatParameter(self.clientID, self.plane, vrep.sim_objfloatparam_modelbbox_max_x,
                                                       BLOCKING)
@@ -103,25 +103,31 @@ class my_robot(object):
         err, y_min = vrep.simxGetObjectFloatParameter(self.clientID, self.plane, vrep.sim_objfloatparam_modelbbox_min_y,
                                                       BLOCKING)
 
+        err, cuboid_height = vrep.simxGetObjectFloatParameter(self.clientID, self.Cuboid, vrep.sim_objfloatparam_modelbbox_max_z,
+                                                      BLOCKING)
+
         # 得到plane位置
         err, plane_pos = vrep.simxGetObjectPosition(self.clientID, self.plane, -1, BLOCKING)
         POS_MIN, POS_MAX = [plane_pos[0] + x_min, plane_pos[1] + y_min,0], [plane_pos[0] + x_max, plane_pos[1] + y_max,0]
         # print('min', POS_MIN, 'MAX', POS_MAX)
         pos = list(np.random.uniform(POS_MIN, POS_MAX))
 
-        pos[2]=0.049872
+        pos[2] = cuboid_height
+
 
         # 物體隨機擺放
 
-
-        #for eval
-        # pos_eval=[ 0.483295, 0.009622, 0.049872]
         vrep.simxSetObjectPosition(self.clientID, self.Cuboid, -1, pos, ONESHOT)
 
     def get_cuboid_pos(self):
         self.Cuboid_pos = self.get_position(self.Cuboid)  # 讀物體位置
+        err, cuboid_x = vrep.simxGetObjectFloatParameter(self.clientID, self.Cuboid, vrep.sim_objfloatparam_modelbbox_max_x,BLOCKING)
+        err, cuboid_y= vrep.simxGetObjectFloatParameter(self.clientID, self.Cuboid, vrep.sim_objfloatparam_modelbbox_max_y, BLOCKING)
+        cuboid_x_range = np.array([self.Cuboid_pos[0] + cuboid_x, self.Cuboid_pos[0] - cuboid_x])
+        cuboid_y_range = np.array([self.Cuboid_pos[1] + cuboid_y, self.Cuboid_pos[1] - cuboid_y])
+
         # self.Cuboid_pos[2] += self.get_object_height(self.Cuboid)  # 得到物體表面位置
-        return (self.Cuboid_pos)
+        return (self.Cuboid_pos), cuboid_x_range , cuboid_y_range
 
     def get_EEF_pos(self):
         _, self.EEF_pos = vrep.simxGetObjectPosition(self.clientID, self.EEF, -1, BLOCKING)
@@ -202,11 +208,12 @@ class my_robot(object):
     def move_all_joint(self, joint_angle):
 
         vrep.simxPauseCommunication(self.clientID, True)
-        # for i in range(jointNum):
-        #     vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[i], joint_angle[i], ONESHOT)
         for i in range(jointNum):
-            vrep.simxSetJointPosition(self.clientID, self.joint_handle[i], joint_angle[i], ONESHOT)
+            vrep.simxSetJointTargetPosition(self.clientID, self.joint_handle[i], joint_angle[i], ONESHOT)
+        # for i in range(jointNum):
+        #     vrep.simxSetJointPosition(self.clientID, self.joint_handle[i], joint_angle[i], ONESHOT)
         vrep.simxPauseCommunication(self.clientID, False)
+        vrep.simxGetPingTime(self.clientID)  # 使得该仿真步走完
 
     def move_4_joint(self, joint_angle):
         #MOVE JOINT 1,2,3,5
